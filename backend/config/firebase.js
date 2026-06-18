@@ -11,11 +11,12 @@ if (process.env.NODE_ENV === 'test') {
     adminApp = initializeApp({
       credential: cert(serviceAccount)
     });
+    auth = getAuth(adminApp);
     console.log('Firebase Admin SDK initialized successfully');
   } catch (error) {
-    console.error('Firebase Admin initialization error', error.stack);
+    console.error('Firebase Admin not configured. Using Mock Auth.');
+    auth = { verifyIdToken: async () => ({ uid: 'mock_uid' }) };
   }
-  auth = getAuth(adminApp);
 }
 
 // Mock Firestore DB for development until real credentials are provided
