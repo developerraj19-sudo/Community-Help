@@ -105,7 +105,12 @@ export default function ProviderDashboard() {
                 </div>
               </div>
               {!provider.isApproved && (
-                <div className="bg-yellow-400 text-yellow-900 text-xs font-bold px-3 py-1.5 rounded-xl">Pending Approval</div>
+                <button 
+                  onClick={() => toast.success('Your verification request has been sent to the admin and is under review.')}
+                  className="bg-yellow-400 hover:bg-yellow-500 transition-colors text-yellow-900 text-xs font-bold px-3 py-1.5 rounded-xl cursor-pointer"
+                >
+                  Pending Approval
+                </button>
               )}
             </div>
           </div>
