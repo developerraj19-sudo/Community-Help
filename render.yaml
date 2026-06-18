@@ -1,0 +1,40 @@
+services:
+  # Node.js Backend Server
+  - type: web
+    name: community-help-backend
+    env: node
+    region: singapore
+    plan: free
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm run start # Assuming start is set to node server.js. Let's make sure backend/package.json has a start script.
+    envVars:
+      - key: PORT
+        value: 5000
+      - key: NODE_ENV
+        value: production
+      - key: MONGO_URI
+        sync: false # User must input this in Render dashboard
+      - key: JWT_SECRET
+        sync: false # User must input this in Render dashboard
+      - key: FIREBASE_PROJECT_ID
+        sync: false # User must input this in Render dashboard
+      - key: FIREBASE_CLIENT_EMAIL
+        sync: false # User must input this in Render dashboard
+      - key: FIREBASE_PRIVATE_KEY
+        sync: false # User must input this in Render dashboard
+      - key: OPENAI_API_KEY
+        sync: false # Optional
+
+  # Python AI Microservice (Optional)
+  - type: web
+    name: community-help-ai-service
+    env: python
+    region: singapore
+    plan: free
+    rootDir: other/ai-service
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port 10000
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.0
