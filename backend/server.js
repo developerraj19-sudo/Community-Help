@@ -21,7 +21,7 @@ const io = new Server(server, {
 });
 
 // Middleware
-app.use(helmet()); // Secure HTTP Headers
+app.use(helmet({ crossOriginResourcePolicy: false })); // Secure HTTP Headers
 app.use(cors({ origin: '*' }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
