@@ -7,13 +7,9 @@ const Otp = require('../models/Otp');
 const { protect } = require('../middleware/auth');
 const twilio = require('twilio');
 
-// Temporarily commented out for demo testing
-/*
 const twilioClient = (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_ACCOUNT_SID !== 'your_twilio_sid') 
   ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN) 
   : null;
-*/
-const twilioClient = null;
 
 const signToken = (id) =>
   jwt.sign({ id }, process.env.JWT_SECRET || 'fallback_secret', {
