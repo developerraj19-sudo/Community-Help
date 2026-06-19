@@ -105,25 +105,16 @@ export default function TrackingPage() {
 
   const [loading, setLoading] = useState(true);
 
-  // Extract locations early for OSRM fetch
+  const [initialStartLoc, setInitialStartLoc] = useState(null);
+
   const userLat = emergency?.location?.coordinates[1] || 0;
   const userLng = emergency?.location?.coordinates[0] || 0;
 
-  // Generate a pseudo-random unique offset based on the emergency ID
-  const getOffset = (id, salt) => {
-    let hash = 0;
-    for (let i = 0; i < id.length; i++) {
-      hash = id.charCodeAt(i) + ((hash << 5) - hash) + salt;
-    }
-    // Randomize between -0.005 and +0.005 degrees (approx 0.5 - 1 km radius)
-    return ((Math.abs(hash) % 100) / 10000) - 0.005;
-  };
-
-  const startLat = emergency ? userLat + getOffset(emergency._id, 123) : 0;
-  const startLng = emergency ? userLng + getOffset(emergency._id, 456) : 0;
-
+  // Wait for the actual provider location from Firestore to start routing
   useEffect(() => {
-    if (!userLat || !userLng || !startLat || !startLng || !emergency) return;
+    if (!userLat || !userLng || !initialStartLoc || !emergency) return;
+    const startLat = initialStartLoc.lat;
+    const startLng = initialStartLoc.lng;
     const url = `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${userLng},${userLat}?overview=full&geometries=geojson`;
     fetch(url)
       .then(res => res.json())
@@ -132,7 +123,6 @@ export default function TrackingPage() {
           const coords = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
           setRouteCoords(coords);
           
-          // Use realistic duration from OSRM + realistic 5 minute dispatch/traffic buffer
           const realisticSeconds = Math.floor(data.routes[0].duration) + 300;
           setOsrmDuration(realisticSeconds);
           
@@ -143,7 +133,7 @@ export default function TrackingPage() {
         }
       })
       .catch(err => console.error("OSRM Routing Error:", err));
-  }, [userLat, userLng, startLat, startLng, emergency]);
+  }, [userLat, userLng, initialStartLoc, emergency]);
 
 
   useEffect(() => {
@@ -165,11 +155,10 @@ export default function TrackingPage() {
     const unsub = onSnapshot(doc(db, 'emergency_status', id), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
-        // Don't blindly override ETA from Firebase if it's stale,
-        // let the frontend countdown continue smoothly.
         if (data.status) setEmergency(prev => prev ? { ...prev, status: data.status } : null);
         if (data.providerLat && data.providerLng) {
           setProviderLoc({ lat: data.providerLat, lng: data.providerLng });
+          setInitialStartLoc(prev => prev || { lat: data.providerLat, lng: data.providerLng });
         }
       }
     });
@@ -237,6 +226,9 @@ export default function TrackingPage() {
   const progress = providerEta !== null ? Math.max(0, 100 - (providerEta / totalSeconds) * 100) : 0;
   // Progress from 0.0 to 1.0
   const moveRatio = Math.min(1, Math.max(0, 1 - (currentSeconds / totalSeconds)));
+
+  const startLat = initialStartLoc ? initialStartLoc.lat : userLat;
+  const startLng = initialStartLoc ? initialStartLoc.lng : userLng;
 
   const currentPosData = routeCoords.length > 0
     ? getPositionAlongPath(routeCoords, moveRatio)
