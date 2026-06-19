@@ -184,10 +184,21 @@ export default function AIChatbot() {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <button onClick={() => setSpeakResponses(!speakResponses)} className="w-8 h-8 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center transition" title="Toggle Voice Output">
+              <button onClick={() => {
+                if (speakResponses) {
+                  if (window.currentAudio) window.currentAudio.pause();
+                  if (window.speechSynthesis) window.speechSynthesis.cancel();
+                }
+                setSpeakResponses(!speakResponses);
+              }} className="w-8 h-8 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center transition" title="Toggle Voice Output">
                 {speakResponses ? <FiVolume2 className="text-white" /> : <FiVolumeX className="text-red-200" />}
               </button>
-              <button onClick={() => setOpen(false)} className="w-8 h-8 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center transition">
+              <button onClick={() => {
+                setOpen(false);
+                setMessages([{ role: 'assistant', content: "👋 Hello! I'm your Community Help assistant. I can help you with emergencies, utility services, and more. How can I help you today?" }]);
+                if (window.currentAudio) window.currentAudio.pause();
+                if (window.speechSynthesis) window.speechSynthesis.cancel();
+              }} className="w-8 h-8 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center transition">
                 <FiX className="text-white" />
               </button>
             </div>
