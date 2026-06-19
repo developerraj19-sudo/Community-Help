@@ -365,12 +365,23 @@ export default function TrackingPage() {
 
                 <MapUpdater startLat={startLat} startLng={startLng} endLat={userLat} endLng={userLng} />
 
-                {/* Zomato Style Solid Route Line */}
+                {/* Full Route Line (Grey) */}
+                {routeCoords.length > 0 && (
+                  <Polyline
+                    positions={routeCoords}
+                    color="#9ca3af"
+                    weight={4}
+                    opacity={0.5}
+                    dashArray="5, 10"
+                  />
+                )}
+
+                {/* Zomato Style Solid Route Line (Remaining Route) */}
                 <Polyline
                   positions={remainingRoute}
                   color="#1f2937"
-                  weight={4}
-                  opacity={0.8}
+                  weight={5}
+                  opacity={0.9}
                 />
 
                 {/* Location Accuracy Radius (Swiggy Style) */}
