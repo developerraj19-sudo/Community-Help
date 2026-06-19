@@ -311,12 +311,23 @@ export default function TrackingPage() {
                 <FiCheckCircle className="w-5 h-5" /> Arrived Securely
               </div>
             ) : (
-              <div className="flex items-center justify-between gap-4 bg-gray-50 border border-gray-100 rounded-2xl p-3 w-full sm:w-auto shadow-inner">
-                <div className="sm:hidden text-gray-500 font-bold text-sm pl-2">Estimated Arrival</div>
-                <div className="text-right flex items-end gap-1.5 pr-2 sm:pr-0">
-                  <div className={`text-4xl font-black leading-none tracking-tighter ${c.text}`}>{etaMins}</div>
-                  <div className="text-gray-500 font-bold text-xs uppercase tracking-wider pb-0.5 leading-tight">min<br/>ETA</div>
+              <div className="flex flex-col items-end gap-2 w-full sm:w-auto">
+                <div className="flex items-center justify-between gap-4 bg-gray-50 border border-gray-100 rounded-2xl p-3 w-full sm:w-auto shadow-inner">
+                  <div className="sm:hidden text-gray-500 font-bold text-sm pl-2">Estimated Arrival</div>
+                  <div className="text-right flex items-end gap-1.5 pr-2 sm:pr-0">
+                    <div className={`text-4xl font-black leading-none tracking-tighter ${c.text}`}>{fmt(providerEta || totalSeconds)}</div>
+                    <div className="text-gray-500 font-bold text-xs uppercase tracking-wider pb-0.5 leading-tight">ETA</div>
+                  </div>
                 </div>
+                <button 
+                  onClick={() => {
+                    setProviderEta(e => Math.max(1, e - 60)); // skip 1 minute
+                    setElapsed(s => s + 60);
+                  }}
+                  className="text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
+                >
+                  <FiClock className="w-3 h-3" /> Skip 1 Min (Demo)
+                </button>
               </div>
             )}
           </div>
