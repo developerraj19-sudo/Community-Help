@@ -114,20 +114,18 @@ export default function TrackingPage() {
   useEffect(() => {
     if (!userLat || !userLng || !emergency) return;
     
-    let startLat = parseFloat(initialStartLoc?.lat);
-    let startLng = parseFloat(initialStartLoc?.lng);
+    let validStartLat = parseFloat(initialStartLoc?.lat);
+    let validStartLng = parseFloat(initialStartLoc?.lng);
     
-    // Fallback: If missing, corrupt (NaN), or backend returned user's exact coordinates
-    if (!startLat || !startLng || isNaN(startLat) || isNaN(startLng) || (Math.abs(startLat - userLat) < 0.001 && Math.abs(startLng - userLng) < 0.001)) {
+    if (!validStartLat || !validStartLng || isNaN(validStartLat) || isNaN(validStartLng) || (Math.abs(validStartLat - userLat) < 0.005 && Math.abs(validStartLng - userLng) < 0.005)) {
       let seed = 0;
       for (let i = 0; i < emergency._id.length; i++) seed += emergency._id.charCodeAt(i);
       const angle = (seed % 360) * (Math.PI / 180);
-      const distOffset = 0.08; // ~8km
-      startLat = userLat + Math.cos(angle) * distOffset;
-      startLng = userLng + Math.sin(angle) * distOffset;
+      validStartLat = userLat + Math.cos(angle) * 0.08;
+      validStartLng = userLng + Math.sin(angle) * 0.08;
     }
 
-    const url = `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${userLng},${userLat}?overview=full&geometries=geojson`;
+    const url = `https://router.project-osrm.org/route/v1/driving/${validStartLng},${validStartLat};${userLng},${userLat}?overview=full&geometries=geojson`;
     fetch(url)
       .then(res => res.json())
       .then(data => {
@@ -252,36 +250,41 @@ export default function TrackingPage() {
   // Progress from 0.0 to 1.0
   const moveRatio = Math.min(1, Math.max(0, 1 - (currentSeconds / totalSeconds)));
 
-  let startLat = parseFloat(initialStartLoc?.lat);
-  let startLng = parseFloat(initialStartLoc?.lng);
-  // Fallback: If missing, corrupt, or exact same coordinates
-  if (!startLat || !startLng || isNaN(startLat) || isNaN(startLng) || (Math.abs(startLat - userLat) < 0.001 && Math.abs(startLng - userLng) < 0.001)) {
+  // Force valid coordinates. If backend gives us strings or exact matches, force an offset.
+  let validStartLat = parseFloat(initialStartLoc?.lat);
+  let validStartLng = parseFloat(initialStartLoc?.lng);
+  
+  if (!validStartLat || !validStartLng || isNaN(validStartLat) || isNaN(validStartLng) || (Math.abs(validStartLat - userLat) < 0.005 && Math.abs(validStartLng - userLng) < 0.005)) {
+    // Deterministic 8km offset generator
     let seed = 0;
-    const strId = emergency?._id || '';
+    const strId = emergency?._id || 'fallback';
     for (let i = 0; i < strId.length; i++) seed += strId.charCodeAt(i);
     const angle = (seed % 360) * (Math.PI / 180);
-    const distOffset = 0.08;
-    startLat = userLat + Math.cos(angle) * distOffset;
-    startLng = userLng + Math.sin(angle) * distOffset;
+    validStartLat = userLat + Math.cos(angle) * 0.08;
+    validStartLng = userLng + Math.sin(angle) * 0.08;
   }
 
   const currentPosData = routeCoords.length > 0
     ? getPositionAlongPath(routeCoords, moveRatio)
     : {
-      pos: [startLat + (userLat - startLat) * moveRatio, startLng + (userLng - startLng) * moveRatio],
+      pos: [validStartLat + (userLat - validStartLat) * moveRatio, validStartLng + (userLng - validStartLng) * moveRatio],
       index: 0,
-      bearing: getBearing(startLat, startLng, userLat, userLng)
+      bearing: getBearing(validStartLat, validStartLng, userLat, userLng)
     };
 
   const currentPos = currentPosData.pos;
-  const currentLat = currentPos ? currentPos[0] : startLat;
-  const currentLng = currentPos ? currentPos[1] : startLng;
+  const currentLat = currentPos && !isNaN(currentPos[0]) ? currentPos[0] : validStartLat;
+  const currentLng = currentPos && !isNaN(currentPos[1]) ? currentPos[1] : validStartLng;
   const currentBearing = currentPosData.bearing;
 
   // Erase travelled path by only drawing from current vehicle position onwards
   const remainingRoute = routeCoords.length > 0
     ? [currentPos, ...routeCoords.slice(currentPosData.index + 1)]
     : [[currentLat, currentLng], [userLat, userLng]];
+
+  // Make absolutely sure MapUpdater gets the final, enforced coordinates
+  const finalStartLat = validStartLat;
+  const finalStartLng = validStartLng;
 
   // Dynamically generate hyper-realistic rotated vehicle image icon
   const vehicleSrc = emergency?.type === 'ambulance' ? '/icons/ambulance.png'
@@ -346,15 +349,6 @@ export default function TrackingPage() {
                     <div className="text-gray-500 font-bold text-xs uppercase tracking-wider pb-0.5 leading-tight">ETA</div>
                   </div>
                 </div>
-                <button 
-                  onClick={() => {
-                    setProviderEta(e => Math.max(1, e - 60)); // skip 1 minute
-                    setElapsed(s => s + 60);
-                  }}
-                  className="text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
-                >
-                  <FiClock className="w-3 h-3" /> Skip 1 Min (Demo)
-                </button>
               </div>
             )}
           </div>
@@ -398,7 +392,7 @@ export default function TrackingPage() {
                   url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
                 />
 
-                <MapUpdater startLat={startLat} startLng={startLng} endLat={userLat} endLng={userLng} />
+                <MapUpdater startLat={finalStartLat} startLng={finalStartLng} endLat={userLat} endLng={userLng} />
 
                 {/* Full Route Line (Grey) */}
                 {routeCoords.length > 0 && (
