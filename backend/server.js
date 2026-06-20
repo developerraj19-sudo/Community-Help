@@ -32,10 +32,10 @@ app.use(mongoSanitize());
 // HTTP Request Logging
 app.use(morgan('combined', { stream: logger.stream }));
 
-// Rate Limiting (100 reqs per 15 mins)
+// Rate Limiting (1000 reqs per 15 mins) to prevent blocking during active development/testing
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
+  max: 1000,
   message: { success: false, message: 'Too many requests from this IP, please try again after 15 minutes' }
 });
 app.use('/api', apiLimiter);
