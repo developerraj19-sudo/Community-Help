@@ -27,7 +27,14 @@ router.get('/nearby', async (req, res) => {
         },
       };
     }
-    const providers = await Provider.find(filter).populate('user', 'name phone avatar').limit(50);
+    let providers = await Provider.find(filter).populate('user', 'name phone avatar').limit(50);
+
+    // Fallback: If no providers found within strict radius, fetch them regardless of location 
+    // This handles providers who registered without location access (defaulted to [0,0])
+    if (providers.length === 0 && filter.location) {
+      delete filter.location;
+      providers = await Provider.find(filter).populate('user', 'name phone avatar').limit(50);
+    }
 
     // --- SMART RECOMMENDATION ENGINE ---
     // If lat/lng provided, calculate distance manually using Haversine to score them

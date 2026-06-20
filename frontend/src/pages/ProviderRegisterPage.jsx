@@ -180,7 +180,21 @@ export default function ProviderRegisterPage() {
         offeredServices: form.offeredServices,
         idProof: idProofBase64,
         companyLicense: companyLicenseBase64,
+        // Grab current location so they appear in nearby searches!
+        lat: 12.9141, // Default fallback
+        lng: 74.8560
       };
+
+      // Try to get real location silently
+      try {
+        const pos = await new Promise((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+        });
+        payload.lat = pos.coords.latitude;
+        payload.lng = pos.coords.longitude;
+      } catch (err) {
+        console.log("Using default location for provider");
+      }
 
       const { data } = await registerProvider(payload);
       
