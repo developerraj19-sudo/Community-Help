@@ -16,9 +16,11 @@ export function AuthProvider({ children }) {
           setUser(res.data.user);
           if (res.data.provider) setProvider(res.data.provider);
         })
-        .catch(() => {
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
+        .catch((err) => {
+          console.error("Failed to fetch user profile during auth context initialization:", err.message);
+          // Only clear user state locally so it forces login, but DO NOT maliciously delete the token 
+          // from localStorage unless the API specifically returned 401 (which api.js already handles).
+          setUser(null);
         })
         .finally(() => setLoading(false));
     } else {
