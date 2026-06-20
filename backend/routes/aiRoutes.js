@@ -70,33 +70,53 @@ CRITICAL LANGUAGE RULE: You MUST auto-detect the exact language the user is typi
       { role: 'user', content: userContent }
     ];
 
-    // Use a reliable model instead of the unpredictable free router
-    const modelToUse = isDirectGemini ? 'gemini-2.5-flash' : 'google/gemini-2.5-flash';
+    const directModels = ['gemini-2.5-flash-lite', 'gemini-3.0-flash', 'gemini-3.1-pro'];
+    const openRouterModels = ['google/gemini-2.5-flash-lite', 'google/gemini-3.0-flash', 'google/gemini-3.1-pro'];
+    const modelsToTry = isDirectGemini ? directModels : openRouterModels;
+
     const apiUrl = isDirectGemini 
       ? 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions'
       : 'https://openrouter.ai/api/v1/chat/completions';
     const maxTokens = 800;
 
-    const response = await axios.post(apiUrl, {
-      model: modelToUse,
-      messages: safeMessages,
-      max_tokens: maxTokens,
-      temperature: 0.2
-    }, {
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'HTTP-Referer': 'http://localhost:3000',
-        'X-Title': 'Community Help Platform',
-        'Content-Type': 'application/json'
+    let reply = null;
+    let apiError = null;
+
+    // Loop through the models: if one hits a limit/fails, it automatically tries the next one
+    for (const modelToUse of modelsToTry) {
+      try {
+        const response = await axios.post(apiUrl, {
+          model: modelToUse,
+          messages: safeMessages,
+          max_tokens: maxTokens,
+          temperature: 0.2
+        }, {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'HTTP-Referer': 'http://localhost:3000',
+            'X-Title': 'Community Help Platform',
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        reply = response.data.choices[0].message.content;
+        break; // Success! Exit the fallback loop
+      } catch (err) {
+        console.warn(`[AI Warning] Model ${modelToUse} failed:`, err.response?.data?.error?.message || err.message);
+        apiError = err;
+        // The loop will now automatically continue to the next model
       }
-    });
+    }
 
-    const reply = response.data.choices[0].message.content;
-    res.json({ success: true, reply });
-
-  } catch (err) {
-    console.error('AI API Error:', err.response?.data || err.message);
-    // Graceful fallback if API fails
+    if (reply) {
+      return res.json({ success: true, reply });
+    } else {
+      console.error('All AI models reached their limits or failed. Final Error:', apiError?.response?.data || apiError?.message);
+      // Graceful fallback if ALL API models fail
+      return res.json({ success: true, reply: getFallbackResponse(req.body.message) });
+    }
+  } catch (outerErr) {
+    console.error('Critical Router Error:', outerErr.message);
     res.json({ success: true, reply: getFallbackResponse(req.body.message) });
   }
 });
