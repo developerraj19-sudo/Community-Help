@@ -114,11 +114,11 @@ export default function TrackingPage() {
   useEffect(() => {
     if (!userLat || !userLng || !emergency) return;
     
-    let startLat = initialStartLoc?.lat;
-    let startLng = initialStartLoc?.lng;
+    let startLat = parseFloat(initialStartLoc?.lat);
+    let startLng = parseFloat(initialStartLoc?.lng);
     
-    // Fallback: If this is an older emergency without providerLat, or backend returned user's exact coordinates
-    if (!startLat || !startLng || (Math.abs(startLat - userLat) < 0.001 && Math.abs(startLng - userLng) < 0.001)) {
+    // Fallback: If missing, corrupt (NaN), or backend returned user's exact coordinates
+    if (!startLat || !startLng || isNaN(startLat) || isNaN(startLng) || (Math.abs(startLat - userLat) < 0.001 && Math.abs(startLng - userLng) < 0.001)) {
       let seed = 0;
       for (let i = 0; i < emergency._id.length; i++) seed += emergency._id.charCodeAt(i);
       const angle = (seed % 360) * (Math.PI / 180);
@@ -252,10 +252,10 @@ export default function TrackingPage() {
   // Progress from 0.0 to 1.0
   const moveRatio = Math.min(1, Math.max(0, 1 - (currentSeconds / totalSeconds)));
 
-  let startLat = initialStartLoc?.lat;
-  let startLng = initialStartLoc?.lng;
-  // Fallback: If missing, or if the backend returned the exact same coordinates as the user (bug prevention)
-  if (!startLat || !startLng || (Math.abs(startLat - userLat) < 0.001 && Math.abs(startLng - userLng) < 0.001)) {
+  let startLat = parseFloat(initialStartLoc?.lat);
+  let startLng = parseFloat(initialStartLoc?.lng);
+  // Fallback: If missing, corrupt, or exact same coordinates
+  if (!startLat || !startLng || isNaN(startLat) || isNaN(startLng) || (Math.abs(startLat - userLat) < 0.001 && Math.abs(startLng - userLng) < 0.001)) {
     let seed = 0;
     const strId = emergency?._id || '';
     for (let i = 0; i < strId.length; i++) seed += strId.charCodeAt(i);
