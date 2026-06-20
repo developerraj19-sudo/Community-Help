@@ -4,27 +4,31 @@ import { getMe } from '../api/api';
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    try {
+      const savedUser = localStorage.getItem('user');
+      return savedUser ? JSON.parse(savedUser) : null;
+    } catch { return null; }
+  });
   const [provider, setProvider] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // No need to block rendering if we have cached data
 
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
+      // Silently update user profile in the background without blocking the UI
       getMe()
         .then((res) => {
           setUser(res.data.user);
+          localStorage.setItem('user', JSON.stringify(res.data.user)); // sync cache
           if (res.data.provider) setProvider(res.data.provider);
         })
         .catch((err) => {
-          console.error("Failed to fetch user profile during auth context initialization:", err.message);
-          // Only clear user state locally so it forces login, but DO NOT maliciously delete the token 
-          // from localStorage unless the API specifically returned 401 (which api.js already handles).
-          setUser(null);
-        })
-        .finally(() => setLoading(false));
-    } else {
-      setLoading(false);
+          console.error("Background profile sync failed:", err.message);
+          // DO NOT setUser(null) here. If it's a real 401 token expiry, 
+          // api.js interceptor will automatically clear localStorage and redirect.
+          // If it's just a network error or server restart, let them use cached data!
+        });
     }
   }, []);
 
