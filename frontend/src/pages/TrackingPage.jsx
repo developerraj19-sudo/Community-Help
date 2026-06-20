@@ -119,10 +119,11 @@ export default function TrackingPage() {
     
     if (!validStartLat || !validStartLng || isNaN(validStartLat) || isNaN(validStartLng) || (Math.abs(validStartLat - userLat) < 0.005 && Math.abs(validStartLng - userLng) < 0.005)) {
       let seed = 0;
-      for (let i = 0; i < emergency._id.length; i++) seed += emergency._id.charCodeAt(i);
+      const strId = emergency?._id || 'fallback';
+      for (let i = 0; i < strId.length; i++) seed += strId.charCodeAt(i);
       const angle = (seed % 360) * (Math.PI / 180);
-      validStartLat = userLat + Math.cos(angle) * 0.08;
-      validStartLng = userLng + Math.sin(angle) * 0.08;
+      validStartLat = userLat + Math.cos(angle) * 0.02; // Reduced to ~2km for nearby routes
+      validStartLng = userLng + Math.sin(angle) * 0.02;
     }
 
     const url = `https://router.project-osrm.org/route/v1/driving/${validStartLng},${validStartLat};${userLng},${userLat}?overview=full&geometries=geojson`;
@@ -138,7 +139,9 @@ export default function TrackingPage() {
           
           setProviderEta(prev => {
             if (prev === null) {
-              const elapsedSeconds = Math.floor((new Date().getTime() - new Date(emergency.createdAt).getTime()) / 1000);
+              const referenceTime = emergency.updatedAt ? new Date(emergency.updatedAt).getTime() : new Date(emergency.createdAt).getTime();
+              let elapsedSeconds = Math.floor((new Date().getTime() - referenceTime) / 1000);
+              if (elapsedSeconds < 0 || elapsedSeconds > realisticSeconds) elapsedSeconds = 0; // fallback safety
               return Math.max(0, realisticSeconds - elapsedSeconds);
             }
             return prev;
