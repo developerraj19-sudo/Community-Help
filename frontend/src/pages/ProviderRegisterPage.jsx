@@ -136,20 +136,20 @@ export default function ProviderRegisterPage() {
       // Temporarily set token in localStorage so the next request succeeds
       localStorage.setItem('token', token);
 
-      // Upload Documents to Firebase
-      let idProofUrl = '';
-      let companyLicenseUrl = '';
+      // --- NEW BULLETPROOF IMAGE UPLOAD (Base64 to MongoDB) ---
+      // We are completely bypassing Firebase Storage to avoid all CORS and Bucket Not Found errors!
+      const fileToBase64 = (file) => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = (error) => reject(error);
+      });
 
-      // Firebase Storage requires authentication. Sign in anonymously before uploading.
-      const { signInAnonymously } = require('firebase/auth');
-      const { auth } = require('../firebase');
-      await signInAnonymously(auth);
+      let idProofBase64 = '';
+      let companyLicenseBase64 = '';
 
       if (idProofFile) {
-        const safeType = idProofType.replace(/\s+/g, '_');
-        const idRef = ref(storage, `providers/${formattedPhone}_${safeType}_${idProofFile.name}`);
-        await uploadBytes(idRef, idProofFile);
-        idProofUrl = await getDownloadURL(idRef);
+        idProofBase64 = await fileToBase64(idProofFile);
       } else {
         toast.error('ID Proof is required');
         setLoading(false);
@@ -158,9 +158,7 @@ export default function ProviderRegisterPage() {
 
       if (form.serviceCategory === 'company' || form.serviceCategory === 'organization') {
         if (companyLicenseFile) {
-          const licRef = ref(storage, `providers/${formattedPhone}_lic_${companyLicenseFile.name}`);
-          await uploadBytes(licRef, companyLicenseFile);
-          companyLicenseUrl = await getDownloadURL(licRef);
+          companyLicenseBase64 = await fileToBase64(companyLicenseFile);
         } else {
           toast.error('Company/NGO License is required');
           setLoading(false);
@@ -181,8 +179,8 @@ export default function ProviderRegisterPage() {
         minimumCharge: Number(form.minimumCharge),
         skills: [],
         offeredServices: form.offeredServices,
-        idProof: idProofUrl,
-        companyLicense: companyLicenseUrl,
+        idProof: idProofBase64,
+        companyLicense: companyLicenseBase64,
       };
 
       const { data } = await registerProvider(payload);
