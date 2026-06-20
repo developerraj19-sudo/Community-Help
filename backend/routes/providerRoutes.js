@@ -120,6 +120,9 @@ router.put('/availability', protect, authorize('provider'), async (req, res) => 
 router.put('/:id/approve', protect, authorize('admin'), async (req, res) => {
   try {
     const provider = await Provider.findByIdAndUpdate(req.params.id, { isApproved: true }, { new: true });
+    if (provider) {
+      await User.findByIdAndUpdate(provider.user, { role: 'provider' });
+    }
     res.json({ success: true, provider });
   } catch (err) {
     res.status(500).json({ message: err.message });

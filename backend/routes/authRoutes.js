@@ -225,7 +225,8 @@ router.post('/register-provider', protect, async (req, res) => {
     // Update user details
     user.name = name || user.name;
     if (email) user.email = email;
-    user.role = 'provider';
+    // We intentionally DO NOT set user.role = 'provider' here.
+    // They must be approved by an Admin first before their role is updated.
     await user.save();
 
     const serviceTypeMap = {

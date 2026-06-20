@@ -140,6 +140,11 @@ export default function ProviderRegisterPage() {
       let idProofUrl = '';
       let companyLicenseUrl = '';
 
+      // Firebase Storage requires authentication. Sign in anonymously before uploading.
+      const { signInAnonymously } = require('firebase/auth');
+      const { auth } = require('../firebase');
+      await signInAnonymously(auth);
+
       if (idProofFile) {
         const safeType = idProofType.replace(/\s+/g, '_');
         const idRef = ref(storage, `providers/${formattedPhone}_${safeType}_${idProofFile.name}`);
@@ -182,10 +187,12 @@ export default function ProviderRegisterPage() {
 
       const { data } = await registerProvider(payload);
       
-      // 3. Update global auth state
-      loginUser(data.token, data.user, data.provider);
-      toast.success('Provider account created! Pending admin approval.');
-      navigate('/provider-dashboard');
+      // 3. DO NOT LOG THEM IN AS A PROVIDER. Wait for Admin Approval.
+      localStorage.removeItem('token'); // clear the temporary token
+      
+      // Show exact message requested by user
+      toast.success('Your verification is sent to admin for verification', { duration: 5000 });
+      navigate('/login');
     } catch (err) {
       console.error(err);
       toast.error(err.response?.data?.message || err.message || 'Registration failed');
