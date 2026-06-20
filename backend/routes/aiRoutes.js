@@ -9,7 +9,10 @@ router.post('/chat', protect, async (req, res) => {
     const { message, context = [], image } = req.body;
     
     // If no API key, use the robust fallback engine immediately
-    if (!process.env.OPENROUTER_API_KEY) {
+    const isDirectGemini = !!process.env.GEMINI_API_KEY;
+    const apiKey = isDirectGemini ? process.env.GEMINI_API_KEY : process.env.OPENROUTER_API_KEY;
+
+    if (!apiKey) {
       return res.json({ success: true, reply: getFallbackResponse(message) });
     }
 
@@ -63,17 +66,20 @@ CRITICAL LANGUAGE RULE: You MUST auto-detect the language the user is typing in 
     ];
 
     // Use a reliable model instead of the unpredictable free router
-    const modelToUse = 'google/gemini-2.5-flash';
+    const modelToUse = isDirectGemini ? 'gemini-2.5-flash' : 'google/gemini-2.5-flash';
+    const apiUrl = isDirectGemini 
+      ? 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions'
+      : 'https://openrouter.ai/api/v1/chat/completions';
     const maxTokens = 800;
 
-    const response = await axios.post('https://openrouter.ai/api/v1/chat/completions', {
+    const response = await axios.post(apiUrl, {
       model: modelToUse,
       messages: safeMessages,
       max_tokens: maxTokens,
       temperature: 0.2
     }, {
       headers: {
-        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        'Authorization': `Bearer ${apiKey}`,
         'HTTP-Referer': 'http://localhost:3000',
         'X-Title': 'Community Help Platform',
         'Content-Type': 'application/json'
