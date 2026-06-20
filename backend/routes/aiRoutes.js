@@ -62,8 +62,8 @@ CRITICAL LANGUAGE RULE: You MUST auto-detect the language the user is typing in 
       { role: 'user', content: userContent }
     ];
 
-    // Always use the multimodal auto-router to process both text and images
-    const modelToUse = 'openrouter/free';
+    // Use a reliable model instead of the unpredictable free router
+    const modelToUse = 'google/gemini-2.5-flash';
     const maxTokens = 800;
 
     const response = await axios.post('https://openrouter.ai/api/v1/chat/completions', {
