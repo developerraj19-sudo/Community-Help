@@ -91,7 +91,10 @@ export default function AIChatbot() {
       
       // Crop to 200 chars to be safe for Google TTS limits
       const chunkText = chunks[currentChunk].substring(0, 200); 
-      const url = `/api/ai/tts?text=${encodeURIComponent(chunkText)}&lang=${langPrefix}`;
+      
+      // Use the production backend URL if available, otherwise relative for local development
+      const API_BASE = process.env.REACT_APP_API_URL || '/api';
+      const url = `${API_BASE}/ai/tts?text=${encodeURIComponent(chunkText)}&lang=${langPrefix}`;
       
       const audio = new Audio(url);
       window.currentAudio = audio;
