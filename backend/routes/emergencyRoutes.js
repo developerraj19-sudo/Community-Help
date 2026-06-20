@@ -119,8 +119,8 @@ router.post('/sos', protect, async (req, res) => {
       }
     }
 
-    const providerLat = bestLat;
-    const providerLng = bestLng;
+    let providerLat = bestLat;
+    let providerLng = bestLng;
     const assignedStation = bestStation;
 
     // Average speed 30km/h -> 2 mins per km + 5 minutes base dispatch delay

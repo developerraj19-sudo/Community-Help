@@ -159,6 +159,10 @@ export default function TrackingPage() {
         if (data.providerLat && data.providerLng) {
           setProviderLoc({ lat: data.providerLat, lng: data.providerLng });
           setInitialStartLoc(prev => prev || { lat: data.providerLat, lng: data.providerLng });
+          // Update ETA from Firebase in true real-time, removing the artificial 5-minute delay
+          if (data.etaMinutes !== undefined) {
+            setProviderEta(data.etaMinutes * 60);
+          }
         }
       }
     });
