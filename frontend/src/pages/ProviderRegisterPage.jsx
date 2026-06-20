@@ -11,8 +11,7 @@ import {
   LuWrench, LuZap, LuHammer, LuWind, LuMicrowave, LuTruck, LuSparkles, LuHome, 
   LuChefHat, LuHeartHandshake, LuActivity, LuTestTube, LuBookOpen, LuBuilding2, LuGlobe
 } from 'react-icons/lu';
-import { storage } from '../firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+
 
 const SERVICE_CATEGORIES = [
   { value: 'plumber', label: 'Plumber', icon: LuWrench },
