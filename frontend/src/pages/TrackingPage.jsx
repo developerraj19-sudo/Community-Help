@@ -112,9 +112,21 @@ export default function TrackingPage() {
 
   // Wait for the actual provider location from Firestore to start routing
   useEffect(() => {
-    if (!userLat || !userLng || !initialStartLoc || !emergency) return;
-    const startLat = initialStartLoc.lat;
-    const startLng = initialStartLoc.lng;
+    if (!userLat || !userLng || !emergency) return;
+    
+    let startLat = initialStartLoc?.lat;
+    let startLng = initialStartLoc?.lng;
+    
+    // Fallback: If this is an older emergency without providerLat, generate a deterministic fake location ~10km away
+    if (!startLat || !startLng) {
+      let seed = 0;
+      for (let i = 0; i < emergency._id.length; i++) seed += emergency._id.charCodeAt(i);
+      const angle = (seed % 360) * (Math.PI / 180);
+      const distOffset = 0.08; // ~8km
+      startLat = userLat + Math.cos(angle) * distOffset;
+      startLng = userLng + Math.sin(angle) * distOffset;
+    }
+
     const url = `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${userLng},${userLat}?overview=full&geometries=geojson`;
     fetch(url)
       .then(res => res.json())
@@ -126,10 +138,13 @@ export default function TrackingPage() {
           const realisticSeconds = Math.floor(data.routes[0].duration) + 300;
           setOsrmDuration(realisticSeconds);
           
-          if (providerEta === null) {
-            const elapsedSeconds = Math.floor((new Date().getTime() - new Date(emergency.createdAt).getTime()) / 1000);
-            setProviderEta(Math.max(0, realisticSeconds - elapsedSeconds));
-          }
+          setProviderEta(prev => {
+            if (prev === null) {
+              const elapsedSeconds = Math.floor((new Date().getTime() - new Date(emergency.createdAt).getTime()) / 1000);
+              return Math.max(0, realisticSeconds - elapsedSeconds);
+            }
+            return prev;
+          });
         }
       })
       .catch(err => console.error("OSRM Routing Error:", err));
@@ -141,12 +156,15 @@ export default function TrackingPage() {
       .then(r => {
         const e = r.data.emergencies.find(em => em._id === id);
         setEmergency(e);
-        if (e && providerEta === null && !osrmDuration) {
-          const originalEtaSeconds = e.etaMinutes * 60;
-          const elapsedSeconds = Math.floor((new Date().getTime() - new Date(e.createdAt).getTime()) / 1000);
-          setProviderEta(Math.max(0, originalEtaSeconds - elapsedSeconds));
-          setElapsed(elapsedSeconds);
-        }
+        setProviderEta(prev => {
+          if (e && prev === null && !osrmDuration) {
+            const originalEtaSeconds = e.etaMinutes * 60;
+            const elapsedSeconds = Math.floor((new Date().getTime() - new Date(e.createdAt).getTime()) / 1000);
+            setElapsed(elapsedSeconds);
+            return Math.max(0, originalEtaSeconds - elapsedSeconds);
+          }
+          return prev;
+        });
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -159,15 +177,18 @@ export default function TrackingPage() {
         if (data.providerLat && data.providerLng) {
           setProviderLoc({ lat: data.providerLat, lng: data.providerLng });
           setInitialStartLoc(prev => prev || { lat: data.providerLat, lng: data.providerLng });
-          // Update ETA from Firebase in true real-time, removing the artificial 5-minute delay
-          if (data.etaMinutes !== undefined) {
-            setProviderEta(data.etaMinutes * 60);
-          }
+          // Only use ETA from Firebase if we haven't started counting down locally
+          setProviderEta(prev => {
+            if (prev === null && data.etaMinutes !== undefined) {
+              return data.etaMinutes * 60;
+            }
+            return prev;
+          });
         }
       }
     });
     return () => unsub();
-  }, [id]);
+  }, [id, osrmDuration]);
 
   useEffect(() => {
     if (!emergency) return;
@@ -231,8 +252,17 @@ export default function TrackingPage() {
   // Progress from 0.0 to 1.0
   const moveRatio = Math.min(1, Math.max(0, 1 - (currentSeconds / totalSeconds)));
 
-  const startLat = initialStartLoc ? initialStartLoc.lat : userLat;
-  const startLng = initialStartLoc ? initialStartLoc.lng : userLng;
+  let startLat = initialStartLoc?.lat;
+  let startLng = initialStartLoc?.lng;
+  if (!startLat || !startLng) {
+    let seed = 0;
+    const strId = emergency?._id || '';
+    for (let i = 0; i < strId.length; i++) seed += strId.charCodeAt(i);
+    const angle = (seed % 360) * (Math.PI / 180);
+    const distOffset = 0.08;
+    startLat = userLat + Math.cos(angle) * distOffset;
+    startLng = userLng + Math.sin(angle) * distOffset;
+  }
 
   const currentPosData = routeCoords.length > 0
     ? getPositionAlongPath(routeCoords, moveRatio)
