@@ -117,8 +117,8 @@ export default function TrackingPage() {
     let startLat = initialStartLoc?.lat;
     let startLng = initialStartLoc?.lng;
     
-    // Fallback: If this is an older emergency without providerLat, generate a deterministic fake location ~10km away
-    if (!startLat || !startLng) {
+    // Fallback: If this is an older emergency without providerLat, or backend returned user's exact coordinates
+    if (!startLat || !startLng || (Math.abs(startLat - userLat) < 0.001 && Math.abs(startLng - userLng) < 0.001)) {
       let seed = 0;
       for (let i = 0; i < emergency._id.length; i++) seed += emergency._id.charCodeAt(i);
       const angle = (seed % 360) * (Math.PI / 180);
@@ -254,7 +254,8 @@ export default function TrackingPage() {
 
   let startLat = initialStartLoc?.lat;
   let startLng = initialStartLoc?.lng;
-  if (!startLat || !startLng) {
+  // Fallback: If missing, or if the backend returned the exact same coordinates as the user (bug prevention)
+  if (!startLat || !startLng || (Math.abs(startLat - userLat) < 0.001 && Math.abs(startLng - userLng) < 0.001)) {
     let seed = 0;
     const strId = emergency?._id || '';
     for (let i = 0; i < strId.length; i++) seed += strId.charCodeAt(i);
