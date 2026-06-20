@@ -122,8 +122,8 @@ export default function TrackingPage() {
       const strId = emergency?._id || 'fallback';
       for (let i = 0; i < strId.length; i++) seed += strId.charCodeAt(i);
       const angle = (seed % 360) * (Math.PI / 180);
-      validStartLat = userLat + Math.cos(angle) * 0.02; // Reduced to ~2km for nearby routes
-      validStartLng = userLng + Math.sin(angle) * 0.02;
+      validStartLat = userLat + Math.cos(angle) * 0.005; // ~550m for nearest route
+      validStartLng = userLng + Math.sin(angle) * 0.005;
     }
 
     const url = `https://router.project-osrm.org/route/v1/driving/${validStartLng},${validStartLat};${userLng},${userLat}?overview=full&geometries=geojson`;
@@ -134,7 +134,7 @@ export default function TrackingPage() {
           const coords = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
           setRouteCoords(coords);
           
-          const realisticSeconds = Math.floor(data.routes[0].duration) + 300;
+          const realisticSeconds = 120; // Force exactly 2 minutes
           setOsrmDuration(realisticSeconds);
           
           setProviderEta(prev => {
@@ -263,8 +263,8 @@ export default function TrackingPage() {
     const strId = emergency?._id || 'fallback';
     for (let i = 0; i < strId.length; i++) seed += strId.charCodeAt(i);
     const angle = (seed % 360) * (Math.PI / 180);
-    validStartLat = userLat + Math.cos(angle) * 0.08;
-    validStartLng = userLng + Math.sin(angle) * 0.08;
+    validStartLat = userLat + Math.cos(angle) * 0.005;
+    validStartLng = userLng + Math.sin(angle) * 0.005;
   }
 
   const currentPosData = routeCoords.length > 0
