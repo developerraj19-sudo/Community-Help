@@ -122,8 +122,8 @@ export default function TrackingPage() {
       const strId = emergency?._id || 'fallback';
       for (let i = 0; i < strId.length; i++) seed += strId.charCodeAt(i);
       const angle = (seed % 360) * (Math.PI / 180);
-      validStartLat = userLat + Math.cos(angle) * 0.005; // ~550m for nearest route
-      validStartLng = userLng + Math.sin(angle) * 0.005;
+      validStartLat = userLat + Math.cos(angle) * 0.04; // ~4.5km for 16 minute realistic city route
+      validStartLng = userLng + Math.sin(angle) * 0.04;
     }
 
     const url = `https://router.project-osrm.org/route/v1/driving/${validStartLng},${validStartLat};${userLng},${userLat}?overview=full&geometries=geojson`;
@@ -134,7 +134,7 @@ export default function TrackingPage() {
           const coords = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
           setRouteCoords(coords);
           
-          const realisticSeconds = 120; // Force exactly 2 minutes
+          const realisticSeconds = 16 * 60; // Force exactly 16 minutes
           setOsrmDuration(realisticSeconds);
           
           setProviderEta(prev => {
@@ -242,9 +242,21 @@ export default function TrackingPage() {
   const totalSeconds = osrmDuration || (emergency.etaMinutes * 60);
   const currentSeconds = providerEta !== null ? providerEta : totalSeconds;
   
-  const progress = providerEta !== null ? Math.max(0, 100 - (providerEta / totalSeconds) * 100) : 0;
-  // Progress from 0.0 to 1.0
-  const moveRatio = Math.min(1, Math.max(0, 1 - (currentSeconds / totalSeconds)));
+  const delaySeconds = 120; // 2 minutes waiting period
+  const movingSeconds = Math.max(1, totalSeconds - delaySeconds);
+  
+  let progress = 0;
+  let moveRatio = 0;
+  
+  if (providerEta !== null) {
+    if (providerEta <= movingSeconds) {
+      progress = Math.max(0, 100 - (providerEta / movingSeconds) * 100);
+      moveRatio = Math.min(1, Math.max(0, 1 - (providerEta / movingSeconds)));
+    } else {
+      progress = 0;
+      moveRatio = 0;
+    }
+  }
 
   // Force valid coordinates. If backend gives us strings or exact matches, force an offset.
   let validStartLat = parseFloat(initialStartLoc?.lat);
@@ -256,8 +268,8 @@ export default function TrackingPage() {
     const strId = emergency?._id || 'fallback';
     for (let i = 0; i < strId.length; i++) seed += strId.charCodeAt(i);
     const angle = (seed % 360) * (Math.PI / 180);
-    validStartLat = userLat + Math.cos(angle) * 0.005;
-    validStartLng = userLng + Math.sin(angle) * 0.005;
+    validStartLat = userLat + Math.cos(angle) * 0.04;
+    validStartLng = userLng + Math.sin(angle) * 0.04;
   }
 
   const currentPosData = routeCoords.length > 0
