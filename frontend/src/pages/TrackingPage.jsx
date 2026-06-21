@@ -177,7 +177,8 @@ export default function TrackingPage() {
           // Only use ETA from Firebase if we haven't started counting down locally
           setProviderEta(prev => {
             if (prev === null && data.etaMinutes !== undefined) {
-              return data.etaMinutes * 60;
+              setElapsed(0);
+              return 120; // Force strictly to 2 minutes
             }
             return prev;
           });
