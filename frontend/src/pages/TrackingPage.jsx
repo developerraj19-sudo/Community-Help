@@ -129,8 +129,12 @@ export default function TrackingPage() {
       let placeName = null;
 
       try {
-        const overpassUrl = `https://overpass-api.de/api/interpreter?data=[out:json];(nwr(around:5000,${userLat},${userLng})[amenity=hospital];nwr(around:5000,${userLat},${userLng})[amenity=police];nwr(around:5000,${userLat},${userLng})[amenity=fire_station];);out center;`;
-        const overpassRes = await fetch(overpassUrl);
+        const query = `[out:json];(nwr(around:5000,${userLat},${userLng})[amenity=hospital];nwr(around:5000,${userLat},${userLng})[amenity=police];nwr(around:5000,${userLat},${userLng})[amenity=fire_station];);out center;`;
+        const overpassRes = await fetch('https://overpass-api.de/api/interpreter', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: 'data=' + encodeURIComponent(query)
+        });
         const data = await overpassRes.json();
         
         if (data.elements && data.elements.length > 0) {
