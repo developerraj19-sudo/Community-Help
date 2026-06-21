@@ -101,8 +101,9 @@ export default function TrackingPage() {
   const [providerLoc, setProviderLoc] = useState(null);
   const [routeCoords, setRouteCoords] = useState([]);
   const [osrmDuration, setOsrmDuration] = useState(null);
+  const [routeDistance, setRouteDistance] = useState(null);
+  const [hospitals, setHospitals] = useState([]);
   const intervalRef = useRef(null);
-
   const [loading, setLoading] = useState(true);
 
   const [initialStartLoc, setInitialStartLoc] = useState(null);
@@ -134,6 +135,10 @@ export default function TrackingPage() {
           const coords = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
           setRouteCoords(coords);
           
+          if (data.routes[0].distance) {
+            setRouteDistance(data.routes[0].distance);
+          }
+          
           const realisticSeconds = 16 * 60; // Force exactly 16 minutes
           setOsrmDuration(realisticSeconds);
           
@@ -155,6 +160,17 @@ export default function TrackingPage() {
         }
       })
       .catch(err => console.error("OSRM Routing Error:", err));
+
+    // Fetch nearby hospitals using Overpass API
+    const overpassUrl = `https://overpass-api.de/api/interpreter?data=[out:json];node(around:3000,${userLat},${userLng})[amenity=hospital];out 5;`;
+    fetch(overpassUrl)
+      .then(res => res.json())
+      .then(data => {
+        if (data.elements) {
+          setHospitals(data.elements);
+        }
+      })
+      .catch(err => console.error("Overpass API Error:", err));
   }, [userLat, userLng, initialStartLoc, emergency]);
 
 
@@ -316,6 +332,13 @@ export default function TrackingPage() {
     iconAnchor: [30, 30],
   }) : null;
 
+  const hospitalIcon = new L.DivIcon({
+    html: `<div style="background: white; border: 2px solid #ef4444; border-radius: 8px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; color: #ef4444; font-weight: bold; font-family: sans-serif; font-size: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">H</div>`,
+    className: 'custom-leaflet-icon',
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+  });
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -339,6 +362,12 @@ export default function TrackingPage() {
                 <p className="text-gray-500 text-sm font-semibold mt-1 flex items-center gap-1.5">
                   <span className={`w-1.5 h-1.5 rounded-full ${c.bg}`}></span>
                   Unit: {cfg.unit}
+                  {routeDistance && (
+                    <>
+                      <span className="text-gray-300 mx-1">•</span>
+                      <span>{(routeDistance / 1000).toFixed(1)} km Route</span>
+                    </>
+                  )}
                 </p>
               </div>
             </div>
@@ -401,6 +430,15 @@ export default function TrackingPage() {
                 />
 
                 <MapUpdater startLat={finalStartLat} startLng={finalStartLng} endLat={userLat} endLng={userLng} />
+
+                {/* Nearby Hospitals */}
+                {hospitals.map(h => (
+                  <Marker key={h.id} position={[h.lat, h.lon]} icon={hospitalIcon}>
+                    <Popup className="font-sans font-semibold text-gray-800 text-sm">
+                      {h.tags?.name || 'Nearby Hospital'}
+                    </Popup>
+                  </Marker>
+                ))}
 
                 {/* Full Route Line (Grey) */}
                 {routeCoords.length > 0 && (
