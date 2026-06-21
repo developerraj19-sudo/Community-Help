@@ -155,13 +155,6 @@ export default function TrackingPage() {
       .then(r => {
         const e = r.data.emergencies.find(em => em._id === id);
         setEmergency(e);
-        setProviderEta(prev => {
-          if (e && prev === null && !osrmDuration) {
-            setElapsed(0); // Force elapsed to 0 so the progress bar starts from the beginning
-            return 120; // Force strictly to 2 minutes
-          }
-          return prev;
-        });
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -174,14 +167,6 @@ export default function TrackingPage() {
         if (data.providerLat && data.providerLng) {
           setProviderLoc({ lat: data.providerLat, lng: data.providerLng });
           setInitialStartLoc(prev => prev || { lat: data.providerLat, lng: data.providerLng });
-          // Only use ETA from Firebase if we haven't started counting down locally
-          setProviderEta(prev => {
-            if (prev === null && data.etaMinutes !== undefined) {
-              setElapsed(0);
-              return 120; // Force strictly to 2 minutes
-            }
-            return prev;
-          });
         }
       }
     });
@@ -191,9 +176,12 @@ export default function TrackingPage() {
   useEffect(() => {
     if (!emergency) return;
     intervalRef.current = setInterval(() => {
-      setElapsed(s => s + 1);
       setProviderEta(e => {
-        if (e !== null && e > 0) return e - 1;
+        if (e === null) return e; // Wait for OSRM route to load before starting
+        
+        setElapsed(s => s + 1); // Only increment elapsed if ETA is loaded
+
+        if (e > 0) return e - 1;
         
         // Auto-resolve when ETA hits exactly 0
         if (e === 1 || e === 0) {
