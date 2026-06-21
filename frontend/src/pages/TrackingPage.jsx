@@ -116,6 +116,7 @@ export default function TrackingPage() {
   // Fetch route and nearby places
   useEffect(() => {
     if (!userLat || !userLng || !emergency) return;
+    if (routeCoords.length > 0) return; // Prevent re-fetching when Firestore syncs initial location
     
     let dbStartLat = parseFloat(initialStartLoc?.lat);
     let dbStartLng = parseFloat(initialStartLoc?.lng);
@@ -128,7 +129,7 @@ export default function TrackingPage() {
       let placeName = null;
 
       try {
-        const overpassUrl = `https://overpass-api.de/api/interpreter?data=[out:json];(nwr(around:5000,${userLat},${userLng})[amenity=hospital];nwr(around:5000,${userLat},${userLng})[amenity=police];nwr(around:5000,${userLat},${userLng})[amenity=fire_station];);out center 15;`;
+        const overpassUrl = `https://overpass-api.de/api/interpreter?data=[out:json];(nwr(around:5000,${userLat},${userLng})[amenity=hospital];nwr(around:5000,${userLat},${userLng})[amenity=police];nwr(around:5000,${userLat},${userLng})[amenity=fire_station];);out center;`;
         const overpassRes = await fetch(overpassUrl);
         const data = await overpassRes.json();
         
@@ -170,7 +171,7 @@ export default function TrackingPage() {
         const angle = (seed % 360) * (Math.PI / 180);
         finalLat = userLat + Math.cos(angle) * 0.04;
         finalLng = userLng + Math.sin(angle) * 0.04;
-        setUnitName('Unit ' + ((seed % 10) + 1));
+        setUnitName(emergency?.assignedStation || ('Unit ' + ((seed % 10) + 1)));
       }
 
       setActualStartLoc({ lat: finalLat, lng: finalLng });
