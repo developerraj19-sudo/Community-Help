@@ -139,8 +139,16 @@ export default function TrackingPage() {
           
           setProviderEta(prev => {
             if (prev === null) {
-              setElapsed(0);
-              return realisticSeconds;
+              const storageKey = `track_start_${id}`;
+              let startTime = localStorage.getItem(storageKey);
+              if (!startTime) {
+                startTime = Date.now().toString();
+                localStorage.setItem(storageKey, startTime);
+              }
+              const elapsedSecs = Math.floor((Date.now() - parseInt(startTime)) / 1000);
+              const actualElapsed = Math.min(elapsedSecs, realisticSeconds);
+              setElapsed(actualElapsed);
+              return Math.max(0, realisticSeconds - actualElapsed);
             }
             return prev;
           });
