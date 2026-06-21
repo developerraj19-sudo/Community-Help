@@ -80,7 +80,7 @@ export default function ProviderRegisterPage() {
   const [form, setForm] = useState({
     name: '', email: '', phone: '', password: '', otp: '',
     serviceCategory: '', providerType: 'individual', experience: '', about: '', workStyle: '',
-    skills: '', offeredServices: [], hourlyRate: '', minimumCharge: '', lat: '', lng: ''
+    skills: '', offeredServices: [], hourlyRate: '', minimumCharge: '', lat: '', lng: '', address: ''
   });
   const [locationLoading, setLocationLoading] = useState(false);
   const [idProofFile, setIdProofFile] = useState(null);
@@ -93,10 +93,21 @@ export default function ProviderRegisterPage() {
   const handleDetectLocation = () => {
     setLocationLoading(true);
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setForm(prev => ({ ...prev, lat: pos.coords.latitude, lng: pos.coords.longitude }));
-        toast.success("Location detected successfully");
-        setLocationLoading(false);
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+          const data = await res.json();
+          const address = data.display_name || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+          setForm(prev => ({ ...prev, lat, lng, address }));
+          toast.success("Location detected successfully");
+        } catch (err) {
+          setForm(prev => ({ ...prev, lat, lng, address: 'Location detected (Name unavailable)' }));
+          toast.success("Coordinates detected, but could not fetch address name");
+        } finally {
+          setLocationLoading(false);
+        }
       },
       (err) => {
         toast.error("Could not detect location. Please enable location permissions.");
@@ -387,8 +398,7 @@ export default function ProviderRegisterPage() {
               <div className="mb-4">
                 <label className="text-gray-300 text-sm mb-2 block">Provider Location *</label>
                 <div className="flex gap-2">
-                  <input type="text" readOnly className={`${inputCls} flex-1 text-sm bg-black/20 text-gray-400 cursor-not-allowed`} placeholder="Latitude" value={form.lat} />
-                  <input type="text" readOnly className={`${inputCls} flex-1 text-sm bg-black/20 text-gray-400 cursor-not-allowed`} placeholder="Longitude" value={form.lng} />
+                  <textarea rows="2" readOnly className={`${inputCls} flex-1 text-sm bg-black/20 text-gray-400 cursor-not-allowed resize-none`} placeholder="Location Address" value={form.address || (form.lat ? `${form.lat}, ${form.lng}` : '')} />
                 </div>
                 <button type="button" onClick={handleDetectLocation} disabled={locationLoading} className="mt-2 w-full py-2.5 bg-white/10 hover:bg-white/20 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition flex items-center justify-center gap-2">
                   <FiMapPin /> {locationLoading ? 'Detecting Location...' : 'Auto Detect Location'}
