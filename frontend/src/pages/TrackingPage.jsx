@@ -102,7 +102,7 @@ export default function TrackingPage() {
   const [routeCoords, setRouteCoords] = useState([]);
   const [osrmDuration, setOsrmDuration] = useState(null);
   const [routeDistance, setRouteDistance] = useState(null);
-  const [hospitals, setHospitals] = useState([]);
+  const [nearbyPlaces, setNearbyPlaces] = useState([]);
   const intervalRef = useRef(null);
   const [loading, setLoading] = useState(true);
 
@@ -161,13 +161,13 @@ export default function TrackingPage() {
       })
       .catch(err => console.error("OSRM Routing Error:", err));
 
-    // Fetch nearby hospitals using Overpass API
-    const overpassUrl = `https://overpass-api.de/api/interpreter?data=[out:json];node(around:3000,${userLat},${userLng})[amenity=hospital];out 5;`;
+    // Fetch nearby hospitals and police stations using Overpass API
+    const overpassUrl = `https://overpass-api.de/api/interpreter?data=[out:json];(node(around:3000,${userLat},${userLng})[amenity=hospital];node(around:3000,${userLat},${userLng})[amenity=police];);out 10;`;
     fetch(overpassUrl)
       .then(res => res.json())
       .then(data => {
         if (data.elements) {
-          setHospitals(data.elements);
+          setNearbyPlaces(data.elements);
         }
       })
       .catch(err => console.error("Overpass API Error:", err));
@@ -339,6 +339,13 @@ export default function TrackingPage() {
     iconAnchor: [14, 14],
   });
 
+  const policeIcon = new L.DivIcon({
+    html: `<div style="background: white; border: 2px solid #3b82f6; border-radius: 8px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; color: #3b82f6; font-weight: bold; font-family: sans-serif; font-size: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">P</div>`,
+    className: 'custom-leaflet-icon',
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+  });
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -431,11 +438,11 @@ export default function TrackingPage() {
 
                 <MapUpdater startLat={finalStartLat} startLng={finalStartLng} endLat={userLat} endLng={userLng} />
 
-                {/* Nearby Hospitals */}
-                {hospitals.map(h => (
-                  <Marker key={h.id} position={[h.lat, h.lon]} icon={hospitalIcon}>
+                {/* Nearby Places */}
+                {nearbyPlaces.map(place => (
+                  <Marker key={place.id} position={[place.lat, place.lon]} icon={place.tags?.amenity === 'police' ? policeIcon : hospitalIcon}>
                     <Popup className="font-sans font-semibold text-gray-800 text-sm">
-                      {h.tags?.name || 'Nearby Hospital'}
+                      {place.tags?.name || (place.tags?.amenity === 'police' ? 'Police Station' : 'Nearby Hospital')}
                     </Popup>
                   </Marker>
                 ))}
