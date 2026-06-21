@@ -5,7 +5,7 @@ import { registerProvider, sendOtp, verifyOtp } from '../api/api';
 import { useAuth } from '../context/AuthContext';
 import { 
   FiPhone, FiLock, FiArrowLeft, FiUploadCloud, FiFileText, FiChevronDown, FiCheckCircle,
-  FiUser, FiDollarSign, FiCreditCard, FiAward
+  FiUser, FiDollarSign, FiCreditCard, FiAward, FiMapPin
 } from 'react-icons/fi';
 import { 
   LuWrench, LuZap, LuHammer, LuWind, LuMicrowave, LuTruck, LuSparkles, LuHome, 
@@ -80,14 +80,31 @@ export default function ProviderRegisterPage() {
   const [form, setForm] = useState({
     name: '', email: '', phone: '', password: '', otp: '',
     serviceCategory: '', providerType: 'individual', experience: '', about: '', workStyle: '',
-    skills: '', offeredServices: [], hourlyRate: '', minimumCharge: '',
+    skills: '', offeredServices: [], hourlyRate: '', minimumCharge: '', lat: '', lng: ''
   });
+  const [locationLoading, setLocationLoading] = useState(false);
   const [idProofFile, setIdProofFile] = useState(null);
   const [idProofType, setIdProofType] = useState('Aadhar Card');
   const [companyLicenseFile, setCompanyLicenseFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const { loginUser } = useAuth();
   const navigate = useNavigate();
+
+  const handleDetectLocation = () => {
+    setLocationLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setForm(prev => ({ ...prev, lat: pos.coords.latitude, lng: pos.coords.longitude }));
+        toast.success("Location detected successfully");
+        setLocationLoading(false);
+      },
+      (err) => {
+        toast.error("Could not detect location. Please enable location permissions.");
+        setLocationLoading(false);
+      },
+      { timeout: 10000 }
+    );
+  };
 
   const handleSendOtpAndNext = async () => {
     if(!form.name || !form.phone || !form.password) { toast.error('Name, Phone, and Password are required'); return; }
@@ -109,6 +126,10 @@ export default function ProviderRegisterPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (step !== 3) {
+      if (!form.lat || !form.lng) {
+        toast.error('Please detect your location before proceeding.');
+        return;
+      }
       setStep(3);
       return;
     }
@@ -181,20 +202,9 @@ export default function ProviderRegisterPage() {
         idProof: idProofBase64,
         companyLicense: companyLicenseBase64,
         // Grab current location so they appear in nearby searches!
-        lat: 12.9141, // Default fallback
-        lng: 74.8560
+        lat: Number(form.lat),
+        lng: Number(form.lng)
       };
-
-      // Try to get real location silently
-      try {
-        const pos = await new Promise((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
-        });
-        payload.lat = pos.coords.latitude;
-        payload.lng = pos.coords.longitude;
-      } catch (err) {
-        console.log("Using default location for provider");
-      }
 
       const { data } = await registerProvider(payload);
       
@@ -373,6 +383,18 @@ export default function ProviderRegisterPage() {
                   onChange={e => setForm({...form, minimumCharge: e.target.value})} 
                 />
               </div>
+
+              <div className="mb-4">
+                <label className="text-gray-300 text-sm mb-2 block">Provider Location *</label>
+                <div className="flex gap-2">
+                  <input type="text" readOnly className={`${inputCls} flex-1 text-sm bg-black/20 text-gray-400 cursor-not-allowed`} placeholder="Latitude" value={form.lat} />
+                  <input type="text" readOnly className={`${inputCls} flex-1 text-sm bg-black/20 text-gray-400 cursor-not-allowed`} placeholder="Longitude" value={form.lng} />
+                </div>
+                <button type="button" onClick={handleDetectLocation} disabled={locationLoading} className="mt-2 w-full py-2.5 bg-white/10 hover:bg-white/20 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition flex items-center justify-center gap-2">
+                  <FiMapPin /> {locationLoading ? 'Detecting Location...' : 'Auto Detect Location'}
+                </button>
+              </div>
+
               <div className="flex gap-3">
                 <button type="button" onClick={() => setStep(1)} className="flex-1 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl transition">← Back</button>
                 <button type="submit" className="flex-2 flex-grow py-3.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold rounded-xl transition">
