@@ -139,10 +139,8 @@ export default function TrackingPage() {
           
           setProviderEta(prev => {
             if (prev === null) {
-              const referenceTime = emergency.updatedAt ? new Date(emergency.updatedAt).getTime() : new Date(emergency.createdAt).getTime();
-              let elapsedSeconds = Math.floor((new Date().getTime() - referenceTime) / 1000);
-              if (elapsedSeconds < 0 || elapsedSeconds > realisticSeconds) elapsedSeconds = 0; // fallback safety
-              return Math.max(0, realisticSeconds - elapsedSeconds);
+              setElapsed(0);
+              return realisticSeconds;
             }
             return prev;
           });
@@ -159,10 +157,8 @@ export default function TrackingPage() {
         setEmergency(e);
         setProviderEta(prev => {
           if (e && prev === null && !osrmDuration) {
-            const originalEtaSeconds = e.etaMinutes * 60;
-            const elapsedSeconds = Math.floor((new Date().getTime() - new Date(e.createdAt).getTime()) / 1000);
-            setElapsed(elapsedSeconds);
-            return Math.max(0, originalEtaSeconds - elapsedSeconds);
+            setElapsed(0); // Force elapsed to 0 so the progress bar starts from the beginning
+            return 120; // Force strictly to 2 minutes
           }
           return prev;
         });
