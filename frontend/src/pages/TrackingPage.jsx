@@ -103,6 +103,8 @@ export default function TrackingPage() {
   const [osrmDuration, setOsrmDuration] = useState(null);
   const [routeDistance, setRouteDistance] = useState(null);
   const [nearbyPlaces, setNearbyPlaces] = useState([]);
+  const [unitName, setUnitName] = useState('');
+  const [actualStartLoc, setActualStartLoc] = useState(null);
   const intervalRef = useRef(null);
   const [loading, setLoading] = useState(true);
 
@@ -111,35 +113,74 @@ export default function TrackingPage() {
   const userLat = emergency?.location?.coordinates[1] || 0;
   const userLng = emergency?.location?.coordinates[0] || 0;
 
-  // Wait for the actual provider location from Firestore to start routing
+  // Fetch route and nearby places
   useEffect(() => {
     if (!userLat || !userLng || !emergency) return;
     
-    let validStartLat = parseFloat(initialStartLoc?.lat);
-    let validStartLng = parseFloat(initialStartLoc?.lng);
+    let dbStartLat = parseFloat(initialStartLoc?.lat);
+    let dbStartLng = parseFloat(initialStartLoc?.lng);
     
-    if (!validStartLat || !validStartLng || isNaN(validStartLat) || isNaN(validStartLng) || (Math.abs(validStartLat - userLat) < 0.005 && Math.abs(validStartLng - userLng) < 0.005)) {
-      let seed = 0;
-      const strId = emergency?._id || 'fallback';
-      for (let i = 0; i < strId.length; i++) seed += strId.charCodeAt(i);
-      const angle = (seed % 360) * (Math.PI / 180);
-      validStartLat = userLat + Math.cos(angle) * 0.04; // ~4.5km for 16 minute realistic city route
-      validStartLng = userLng + Math.sin(angle) * 0.04;
-    }
+    const isFallback = !dbStartLat || !dbStartLng || isNaN(dbStartLat) || isNaN(dbStartLng) || (Math.abs(dbStartLat - userLat) < 0.005 && Math.abs(dbStartLng - userLng) < 0.005);
 
-    const url = `https://router.project-osrm.org/route/v1/driving/${validStartLng},${validStartLat};${userLng},${userLat}?overview=full&geometries=geojson`;
-    fetch(url)
-      .then(res => res.json())
-      .then(data => {
+    const fetchRoute = async () => {
+      let finalLat = dbStartLat;
+      let finalLng = dbStartLng;
+      let placeName = null;
+
+      try {
+        const overpassUrl = `https://overpass-api.de/api/interpreter?data=[out:json];(node(around:5000,${userLat},${userLng})[amenity=hospital];node(around:5000,${userLat},${userLng})[amenity=police];);out 10;`;
+        const overpassRes = await fetch(overpassUrl);
+        const data = await overpassRes.json();
+        
+        if (data.elements && data.elements.length > 0) {
+          setNearbyPlaces(data.elements);
+          
+          if (isFallback) {
+            const targetType = emergency.type === 'police' ? 'police' : 'hospital';
+            const sortedPlaces = data.elements
+              .filter(p => p.tags?.amenity === targetType)
+              .sort((a, b) => {
+                const distA = Math.pow(a.lat - userLat, 2) + Math.pow(a.lon - userLng, 2);
+                const distB = Math.pow(b.lat - userLat, 2) + Math.pow(b.lon - userLng, 2);
+                return distA - distB;
+              });
+
+            if (sortedPlaces.length > 0) {
+              finalLat = sortedPlaces[0].lat;
+              finalLng = sortedPlaces[0].lon;
+              placeName = sortedPlaces[0].tags?.name || (targetType === 'police' ? 'Local Police Station' : 'Local Hospital');
+              setUnitName(placeName);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Overpass API Error:", err);
+      }
+
+      if (isFallback && !placeName) {
+        let seed = 0;
+        const strId = emergency?._id || 'fallback';
+        for (let i = 0; i < strId.length; i++) seed += strId.charCodeAt(i);
+        const angle = (seed % 360) * (Math.PI / 180);
+        finalLat = userLat + Math.cos(angle) * 0.04;
+        finalLng = userLng + Math.sin(angle) * 0.04;
+        setUnitName('Unit ' + ((seed % 10) + 1));
+      }
+
+      setActualStartLoc({ lat: finalLat, lng: finalLng });
+
+      try {
+        const url = `https://router.project-osrm.org/route/v1/driving/${finalLng},${finalLat};${userLng},${userLat}?overview=full&geometries=geojson`;
+        const res = await fetch(url);
+        const data = await res.json();
+        
         if (data.routes && data.routes[0]) {
           const coords = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
           setRouteCoords(coords);
+          if (data.routes[0].distance) setRouteDistance(data.routes[0].distance);
           
-          if (data.routes[0].distance) {
-            setRouteDistance(data.routes[0].distance);
-          }
-          
-          const realisticSeconds = 16 * 60; // Force exactly 16 minutes
+          const actualDuration = data.routes[0].duration;
+          const realisticSeconds = isFallback && placeName ? Math.ceil(actualDuration) + 120 : (16 * 60);
           setOsrmDuration(realisticSeconds);
           
           setProviderEta(prev => {
@@ -153,24 +194,17 @@ export default function TrackingPage() {
               const elapsedSecs = Math.floor((Date.now() - parseInt(startTime)) / 1000);
               const actualElapsed = Math.min(elapsedSecs, realisticSeconds);
               setElapsed(actualElapsed);
-              return Math.max(0, realisticSeconds - actualElapsed);
+              return Math.max(0, Math.floor(realisticSeconds) - actualElapsed);
             }
             return prev;
           });
         }
-      })
-      .catch(err => console.error("OSRM Routing Error:", err));
-
-    // Fetch nearby hospitals and police stations using Overpass API
-    const overpassUrl = `https://overpass-api.de/api/interpreter?data=[out:json];(node(around:3000,${userLat},${userLng})[amenity=hospital];node(around:3000,${userLat},${userLng})[amenity=police];);out 10;`;
-    fetch(overpassUrl)
-      .then(res => res.json())
-      .then(data => {
-        if (data.elements) {
-          setNearbyPlaces(data.elements);
-        }
-      })
-      .catch(err => console.error("Overpass API Error:", err));
+      } catch (err) {
+        console.error("OSRM Routing Error:", err);
+      }
+    };
+    
+    fetchRoute();
   }, [userLat, userLng, initialStartLoc, emergency]);
 
 
@@ -274,19 +308,9 @@ export default function TrackingPage() {
     }
   }
 
-  // Force valid coordinates. If backend gives us strings or exact matches, force an offset.
-  let validStartLat = parseFloat(initialStartLoc?.lat);
-  let validStartLng = parseFloat(initialStartLoc?.lng);
-  
-  if (!validStartLat || !validStartLng || isNaN(validStartLat) || isNaN(validStartLng) || (Math.abs(validStartLat - userLat) < 0.005 && Math.abs(validStartLng - userLng) < 0.005)) {
-    // Deterministic 8km offset generator
-    let seed = 0;
-    const strId = emergency?._id || 'fallback';
-    for (let i = 0; i < strId.length; i++) seed += strId.charCodeAt(i);
-    const angle = (seed % 360) * (Math.PI / 180);
-    validStartLat = userLat + Math.cos(angle) * 0.04;
-    validStartLng = userLng + Math.sin(angle) * 0.04;
-  }
+  // Use dynamically calculated start coordinates if available, otherwise default to user location
+  let validStartLat = actualStartLoc?.lat || userLat;
+  let validStartLng = actualStartLoc?.lng || userLng;
 
   const currentPosData = routeCoords.length > 0
     ? getPositionAlongPath(routeCoords, moveRatio)
@@ -368,7 +392,7 @@ export default function TrackingPage() {
                 </h1>
                 <p className="text-gray-500 text-sm font-semibold mt-1 flex items-center gap-1.5">
                   <span className={`w-1.5 h-1.5 rounded-full ${c.bg}`}></span>
-                  Unit: {cfg.unit}
+                  Unit: {unitName || cfg.unit}
                   {routeDistance && (
                     <>
                       <span className="text-gray-300 mx-1">•</span>
