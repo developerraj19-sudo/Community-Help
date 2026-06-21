@@ -128,7 +128,7 @@ export default function TrackingPage() {
       let placeName = null;
 
       try {
-        const overpassUrl = `https://overpass-api.de/api/interpreter?data=[out:json];(nwr(around:5000,${userLat},${userLng})[amenity=hospital];nwr(around:5000,${userLat},${userLng})[amenity=police];);out center 15;`;
+        const overpassUrl = `https://overpass-api.de/api/interpreter?data=[out:json];(nwr(around:5000,${userLat},${userLng})[amenity=hospital];nwr(around:5000,${userLat},${userLng})[amenity=police];nwr(around:5000,${userLat},${userLng})[amenity=fire_station];);out center 15;`;
         const overpassRes = await fetch(overpassUrl);
         const data = await overpassRes.json();
         
@@ -142,7 +142,7 @@ export default function TrackingPage() {
           setNearbyPlaces(normalizedElements);
           
           if (isFallback) {
-            const targetType = emergency.type === 'police' ? 'police' : 'hospital';
+            const targetType = emergency.type === 'police' ? 'police' : emergency.type === 'fire' ? 'fire_station' : 'hospital';
             const sortedPlaces = normalizedElements
               .filter(p => p.tags?.amenity === targetType)
               .sort((a, b) => {
@@ -154,7 +154,7 @@ export default function TrackingPage() {
             if (sortedPlaces.length > 0) {
               finalLat = sortedPlaces[0].lat;
               finalLng = sortedPlaces[0].lon;
-              placeName = sortedPlaces[0].tags?.name || (targetType === 'police' ? 'Local Police Station' : 'Local Hospital');
+              placeName = sortedPlaces[0].tags?.name || (targetType === 'police' ? 'Local Police Station' : targetType === 'fire_station' ? 'Local Fire Station' : 'Local Hospital');
               setUnitName(placeName);
             }
           }
@@ -376,6 +376,13 @@ export default function TrackingPage() {
     iconAnchor: [14, 14],
   });
 
+  const fireStationIcon = new L.DivIcon({
+    html: `<div style="background: white; border: 2px solid #f97316; border-radius: 8px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; color: #f97316; font-weight: bold; font-family: sans-serif; font-size: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">F</div>`,
+    className: 'custom-leaflet-icon',
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+  });
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -469,13 +476,19 @@ export default function TrackingPage() {
                 <MapUpdater startLat={finalStartLat} startLng={finalStartLng} endLat={userLat} endLng={userLng} />
 
                 {/* Nearby Places */}
-                {nearbyPlaces.map(place => (
-                  <Marker key={place.id} position={[place.lat, place.lon]} icon={place.tags?.amenity === 'police' ? policeIcon : hospitalIcon}>
-                    <Popup className="font-sans font-semibold text-gray-800 text-sm">
-                      {place.tags?.name || (place.tags?.amenity === 'police' ? 'Police Station' : 'Nearby Hospital')}
-                    </Popup>
-                  </Marker>
-                ))}
+                {nearbyPlaces.map(place => {
+                  const amenity = place.tags?.amenity;
+                  const icon = amenity === 'police' ? policeIcon : amenity === 'fire_station' ? fireStationIcon : hospitalIcon;
+                  const fallbackName = amenity === 'police' ? 'Police Station' : amenity === 'fire_station' ? 'Fire Station' : 'Nearby Hospital';
+                  
+                  return (
+                    <Marker key={place.id} position={[place.lat, place.lon]} icon={icon}>
+                      <Popup className="font-sans font-semibold text-gray-800 text-sm">
+                        {place.tags?.name || fallbackName}
+                      </Popup>
+                    </Marker>
+                  );
+                })}
 
                 {/* Full Route Line (Grey) */}
                 {routeCoords.length > 0 && (
