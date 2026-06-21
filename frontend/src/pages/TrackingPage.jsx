@@ -128,16 +128,22 @@ export default function TrackingPage() {
       let placeName = null;
 
       try {
-        const overpassUrl = `https://overpass-api.de/api/interpreter?data=[out:json];(node(around:5000,${userLat},${userLng})[amenity=hospital];node(around:5000,${userLat},${userLng})[amenity=police];);out 10;`;
+        const overpassUrl = `https://overpass-api.de/api/interpreter?data=[out:json];(nwr(around:5000,${userLat},${userLng})[amenity=hospital];nwr(around:5000,${userLat},${userLng})[amenity=police];);out center 15;`;
         const overpassRes = await fetch(overpassUrl);
         const data = await overpassRes.json();
         
         if (data.elements && data.elements.length > 0) {
-          setNearbyPlaces(data.elements);
+          const normalizedElements = data.elements.map(e => ({
+            ...e,
+            lat: e.lat || e.center?.lat,
+            lon: e.lon || e.center?.lon
+          })).filter(e => e.lat && e.lon);
+
+          setNearbyPlaces(normalizedElements);
           
           if (isFallback) {
             const targetType = emergency.type === 'police' ? 'police' : 'hospital';
-            const sortedPlaces = data.elements
+            const sortedPlaces = normalizedElements
               .filter(p => p.tags?.amenity === targetType)
               .sort((a, b) => {
                 const distA = Math.pow(a.lat - userLat, 2) + Math.pow(a.lon - userLng, 2);
