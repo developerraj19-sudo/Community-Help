@@ -126,9 +126,19 @@ router.put('/availability', protect, authorize('provider'), async (req, res) => 
 // @PUT /api/providers/:id/approve — admin approve provider
 router.put('/:id/approve', protect, authorize('admin'), async (req, res) => {
   try {
-    const provider = await Provider.findByIdAndUpdate(req.params.id, { isApproved: true }, { new: true });
+    const provider = await Provider.findByIdAndUpdate(req.params.id, { isApproved: true }, { new: true }).populate('user', 'name phone');
     if (provider) {
-      await User.findByIdAndUpdate(provider.user, { role: 'provider' });
+      await User.findByIdAndUpdate(provider.user._id, { role: 'provider' });
+      
+      // Dispatch SMS Notification via Twilio (non-blocking)
+      if (provider.user && provider.user.phone) {
+        const providerPhone = provider.user.phone;
+        const providerName = provider.user.name || 'Provider';
+        const msg = `Congratulations ${providerName}! Your Community Help provider profile has been verified and approved by the admin. You can now receive service requests.`;
+        
+        const { sendProviderSMS } = require('../utils/twilioService');
+        sendProviderSMS(providerPhone, msg).catch(err => console.error("Twilio SMS Background Error:", err.message));
+      }
     }
     res.json({ success: true, provider });
   } catch (err) {
