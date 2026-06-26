@@ -157,9 +157,32 @@ export default function TrackingPage() {
               });
 
             if (sortedPlaces.length > 0) {
-              finalLat = sortedPlaces[0].lat;
-              finalLng = sortedPlaces[0].lon;
-              placeName = sortedPlaces[0].tags?.name || (targetType === 'police' ? 'Local Police Station' : targetType === 'fire_station' ? 'Local Fire Station' : 'Local Hospital');
+              const topPlaces = sortedPlaces.slice(0, 5);
+              let bestPlace = topPlaces[0];
+              let shortestDuration = Infinity;
+
+              try {
+                const routePromises = topPlaces.map(async (p) => {
+                  const url = `https://router.project-osrm.org/route/v1/driving/${p.lon},${p.lat};${userLng},${userLat}?overview=false`;
+                  const res = await fetch(url);
+                  const routeData = await res.json();
+                  return { place: p, duration: routeData.routes?.[0]?.duration || Infinity };
+                });
+                const routeResults = await Promise.all(routePromises);
+                
+                for (const result of routeResults) {
+                  if (result.duration < shortestDuration) {
+                    shortestDuration = result.duration;
+                    bestPlace = result.place;
+                  }
+                }
+              } catch (e) {
+                console.warn("OSRM routing check failed, using euclidean nearest");
+              }
+
+              finalLat = bestPlace.lat;
+              finalLng = bestPlace.lon;
+              placeName = bestPlace.tags?.name || (targetType === 'police' ? 'Local Police Station' : targetType === 'fire_station' ? 'Local Fire Station' : 'Local Hospital');
               setUnitName(placeName);
             }
           }
