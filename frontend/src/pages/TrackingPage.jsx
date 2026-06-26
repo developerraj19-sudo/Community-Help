@@ -122,79 +122,98 @@ export default function TrackingPage() {
     let dbStartLat = parseFloat(initialStartLoc?.lat);
     let dbStartLng = parseFloat(initialStartLoc?.lng);
     
-    const isFallback = !dbStartLat || !dbStartLng || isNaN(dbStartLat) || isNaN(dbStartLng) || (Math.abs(dbStartLat - userLat) < 0.005 && Math.abs(dbStartLng - userLng) < 0.005);
-
     const fetchRoute = async () => {
       let finalLat = dbStartLat;
       let finalLng = dbStartLng;
       let placeName = null;
 
       try {
-        const { data } = await API.get(`/emergency/nearby?lat=${userLat}&lng=${userLng}`);
-        
-        if (data.elements && data.elements.length > 0) {
-          const normalizedElements = data.elements.map(e => ({
-            ...e,
-            lat: e.lat || e.center?.lat,
-            lon: e.lon || e.center?.lon
-          })).filter(e => e.lat && e.lon);
+        const targetType = emergency.type === 'police' ? 'police' : emergency.type === 'fire' ? 'fire_station' : 'hospital';
+        const photonQuery = targetType === 'police' ? 'police' : targetType === 'fire_station' ? 'fire' : 'hospital';
+        const photonUrl = `https://photon.komoot.io/api/?q=${photonQuery}&lat=${userLat}&lon=${userLng}&limit=20`;
 
-          setNearbyPlaces(normalizedElements);
-          
-          const targetType = emergency.type === 'police' ? 'police' : emergency.type === 'fire' ? 'fire_station' : 'hospital';
-            const sortedPlaces = normalizedElements
-              .filter(p => p.tags?.amenity === targetType)
-              .sort((a, b) => {
-                const distA = Math.pow(a.lat - userLat, 2) + Math.pow(a.lon - userLng, 2);
-                const distB = Math.pow(b.lat - userLat, 2) + Math.pow(b.lon - userLng, 2);
-                return distA - distB;
-              });
-
-            if (sortedPlaces.length > 0) {
-              const topPlaces = sortedPlaces.slice(0, 5);
-              let bestPlace = topPlaces[0];
-
-              try {
-                const coords = [...topPlaces.map(p => `${p.lon},${p.lat}`), `${userLng},${userLat}`].join(';');
-                const sources = topPlaces.map((_, i) => i).join(';');
-                const destIndex = topPlaces.length;
-                
-                const url = `https://router.project-osrm.org/table/v1/driving/${coords}?sources=${sources}&destinations=${destIndex}`;
-                const res = await fetch(url);
-                const tableData = await res.json();
-                
-                if (tableData.durations && tableData.durations.length === topPlaces.length) {
-                  let shortestDuration = Infinity;
-                  for (let i = 0; i < topPlaces.length; i++) {
-                    const dur = tableData.durations[i][0];
-                    if (dur !== null && dur < shortestDuration) {
-                      shortestDuration = dur;
-                      bestPlace = topPlaces[i];
-                    }
-                  }
+        let normalizedElements = [];
+        try {
+          const res = await fetch(photonUrl);
+          if (res.ok) {
+            const photonData = await res.json();
+            if (photonData.features && photonData.features.length > 0) {
+              normalizedElements = photonData.features.map(f => ({
+                lat: f.geometry.coordinates[1],
+                lon: f.geometry.coordinates[0],
+                tags: {
+                  amenity: targetType,
+                  name: f.properties.name || f.properties.street || 'Emergency Unit'
                 }
-              } catch (e) {
-                console.warn("OSRM table check failed, using euclidean nearest", e);
-              }
-
-              finalLat = bestPlace.lat;
-              finalLng = bestPlace.lon;
-              placeName = bestPlace.tags?.name || (targetType === 'police' ? 'Local Police Station' : targetType === 'fire_station' ? 'Local Fire Station' : 'Local Hospital');
-              setUnitName(placeName);
+              }));
             }
+          }
+        } catch (apiErr) {
+          console.warn("Photon API fetch failed:", apiErr);
+        }
+
+        // Hardcoded Mangaluru Fallback if Photon fails, times out, or returns nothing useful
+        if (normalizedElements.length === 0) {
+           console.log("Using hardcoded Mangaluru fallback...");
+           normalizedElements = [
+              { lat: 12.8703, lon: 74.8436, tags: { name: "KMC Hospital", amenity: "hospital" } },
+              { lat: 12.8687, lon: 74.8437, tags: { name: "Wenlock Hospital", amenity: "hospital" } },
+              { lat: 12.8631, lon: 74.8550, tags: { name: "Father Muller Hospital", amenity: "hospital" } },
+              { lat: 12.8560, lon: 74.8393, tags: { name: "Pandeshwara Police Station", amenity: "police" } },
+              { lat: 12.8902, lon: 74.8526, tags: { name: "Kadri Police Station", amenity: "police" } },
+              { lat: 12.8555, lon: 74.8400, tags: { name: "Pandeshwara Fire Station", amenity: "fire_station" } }
+           ].filter(e => e.tags.amenity === targetType);
+        }
+
+        setNearbyPlaces(normalizedElements);
+        
+        const sortedPlaces = normalizedElements.sort((a, b) => {
+          const distA = Math.pow(a.lat - userLat, 2) + Math.pow(a.lon - userLng, 2);
+          const distB = Math.pow(b.lat - userLat, 2) + Math.pow(b.lon - userLng, 2);
+          return distA - distB;
+        });
+
+        if (sortedPlaces.length > 0) {
+          const topPlaces = sortedPlaces.slice(0, 5);
+          let bestPlace = topPlaces[0];
+
+          try {
+            const coords = [...topPlaces.map(p => `${p.lon},${p.lat}`), `${userLng},${userLat}`].join(';');
+            const sources = topPlaces.map((_, i) => i).join(';');
+            const destIndex = topPlaces.length;
+            
+            const url = `https://router.project-osrm.org/table/v1/driving/${coords}?sources=${sources}&destinations=${destIndex}`;
+            const tableRes = await fetch(url);
+            const tableData = await tableRes.json();
+            
+            if (tableData.durations && tableData.durations.length === topPlaces.length) {
+              let shortestDuration = Infinity;
+              for (let i = 0; i < topPlaces.length; i++) {
+                const dur = tableData.durations[i][0];
+                if (dur !== null && dur < shortestDuration) {
+                  shortestDuration = dur;
+                  bestPlace = topPlaces[i];
+                }
+              }
+            }
+          } catch (e) {
+            console.warn("OSRM table check failed, using euclidean nearest", e);
+          }
+
+          finalLat = bestPlace.lat;
+          finalLng = bestPlace.lon;
+          placeName = bestPlace.tags?.name || (targetType === 'police' ? 'Local Police Station' : targetType === 'fire_station' ? 'Local Fire Station' : 'Local Hospital');
+          setUnitName(placeName);
         }
       } catch (err) {
-        console.error("Overpass API Error:", err);
+        console.error("Location Logic Error:", err);
       }
 
-      if (isFallback && !placeName) {
-        let seed = 0;
-        const strId = emergency?._id || 'fallback';
-        for (let i = 0; i < strId.length; i++) seed += strId.charCodeAt(i);
-        const angle = (seed % 360) * (Math.PI / 180);
-        finalLat = userLat + Math.cos(angle) * 0.04;
-        finalLng = userLng + Math.sin(angle) * 0.04;
-        setUnitName(emergency?.assignedStation || ('Unit ' + ((seed % 10) + 1)));
+      // Absolute safety net if everything fails (prevents breaking the map)
+      if (!placeName) {
+         finalLat = 12.8687;
+         finalLng = 74.8437;
+         setUnitName('Emergency Unit');
       }
 
       setActualStartLoc({ lat: finalLat, lng: finalLng });
