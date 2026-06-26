@@ -159,25 +159,28 @@ export default function TrackingPage() {
             if (sortedPlaces.length > 0) {
               const topPlaces = sortedPlaces.slice(0, 5);
               let bestPlace = topPlaces[0];
-              let shortestDuration = Infinity;
 
               try {
-                const routePromises = topPlaces.map(async (p) => {
-                  const url = `https://router.project-osrm.org/route/v1/driving/${p.lon},${p.lat};${userLng},${userLat}?overview=false`;
-                  const res = await fetch(url);
-                  const routeData = await res.json();
-                  return { place: p, duration: routeData.routes?.[0]?.duration || Infinity };
-                });
-                const routeResults = await Promise.all(routePromises);
+                const coords = [...topPlaces.map(p => `${p.lon},${p.lat}`), `${userLng},${userLat}`].join(';');
+                const sources = topPlaces.map((_, i) => i).join(';');
+                const destIndex = topPlaces.length;
                 
-                for (const result of routeResults) {
-                  if (result.duration < shortestDuration) {
-                    shortestDuration = result.duration;
-                    bestPlace = result.place;
+                const url = `https://router.project-osrm.org/table/v1/driving/${coords}?sources=${sources}&destinations=${destIndex}`;
+                const res = await fetch(url);
+                const tableData = await res.json();
+                
+                if (tableData.durations && tableData.durations.length === topPlaces.length) {
+                  let shortestDuration = Infinity;
+                  for (let i = 0; i < topPlaces.length; i++) {
+                    const dur = tableData.durations[i][0];
+                    if (dur !== null && dur < shortestDuration) {
+                      shortestDuration = dur;
+                      bestPlace = topPlaces[i];
+                    }
                   }
                 }
               } catch (e) {
-                console.warn("OSRM routing check failed, using euclidean nearest");
+                console.warn("OSRM table check failed, using euclidean nearest", e);
               }
 
               finalLat = bestPlace.lat;
