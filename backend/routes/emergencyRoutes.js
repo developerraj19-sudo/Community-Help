@@ -199,13 +199,77 @@ router.get('/nearby', protect, async (req, res) => {
   try {
     const { lat, lng } = req.query;
     if (!lat || !lng) return res.status(400).json({ message: 'lat and lng required' });
-    
-    // Perform the Overpass API query safely from the backend
+
+    // 1. Try Mappls API if credentials are provided in .env
+    const mapplsClientId = process.env.MAPPLS_CLIENT_ID;
+    const mapplsClientSecret = process.env.MAPPLS_CLIENT_SECRET;
+
+    if (mapplsClientId && mapplsClientSecret) {
+      try {
+        console.log("Using Mappls API for hyper-local Indian routing...");
+        
+        // Fetch Mappls OAuth Token
+        const params = new URLSearchParams();
+        params.append('grant_type', 'client_credentials');
+        params.append('client_id', mapplsClientId);
+        params.append('client_secret', mapplsClientSecret);
+
+        const tokenRes = await fetch('https://outpost.mapmyindia.com/api/security/oauth/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: params
+        });
+
+        if (tokenRes.ok) {
+          const tokenData = await tokenRes.json();
+          const token = tokenData.access_token;
+
+          // Perform Nearby Search using Mappls Atlas API
+          // Mappls requires specific keywords for emergency services
+          const keywords = encodeURIComponent('Hospital;Police Station;Fire Station');
+          const atlasUrl = `https://atlas.mapmyindia.com/api/places/nearby/json?keywords=${keywords}&refLocation=${lat},${lng}&radius=5000`;
+
+          const placesRes = await fetch(atlasUrl, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+
+          if (placesRes.ok) {
+            const placesData = await placesRes.json();
+            
+            // Map Mappls response to exactly match the Overpass frontend expectations
+            if (placesData.suggestedLocations && placesData.suggestedLocations.length > 0) {
+              const elements = placesData.suggestedLocations.map(loc => {
+                // Determine category based on Mappls eLoc keywords/name
+                const nameLower = (loc.placeName || '').toLowerCase();
+                let amenity = 'hospital';
+                if (nameLower.includes('police')) amenity = 'police';
+                if (nameLower.includes('fire')) amenity = 'fire_station';
+
+                return {
+                  lat: loc.latitude,
+                  lon: loc.longitude,
+                  tags: {
+                    amenity: amenity,
+                    name: loc.placeName,
+                    address: loc.placeAddress
+                  }
+                };
+              });
+
+              return res.json({ elements });
+            }
+          }
+        }
+      } catch (mapplsErr) {
+        console.error("Mappls API failed, falling back to Overpass:", mapplsErr);
+      }
+    }
+
+    // 2. Fallback to Overpass API if Mappls keys missing or Mappls failed
+    console.log("Using Overpass API for nearby places...");
     const query = `[out:json];(nwr(around:5000,${lat},${lng})[amenity=hospital];nwr(around:5000,${lat},${lng})[amenity=police];nwr(around:5000,${lat},${lng})[amenity=fire_station];);out center;`;
     const overpassUrl = 'https://overpass-api.de/api/interpreter';
     
-    // We must use dynamic import for node-fetch in newer Node versions, or use native fetch if Node 18+
-    // Since this is Node 18+ (as tested earlier), native fetch is available.
     const overpassRes = await fetch(overpassUrl, {
       method: 'POST',
       headers: { 
@@ -222,7 +286,7 @@ router.get('/nearby', protect, async (req, res) => {
     const data = await overpassRes.json();
     res.json(data);
   } catch (err) {
-    console.error("Backend Overpass Proxy Error:", err);
+    console.error("Backend Nearby Search Error:", err);
     res.status(500).json({ message: err.message, elements: [] });
   }
 });
