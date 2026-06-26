@@ -152,6 +152,18 @@ router.post('/request', protect, async (req, res) => {
     });
 
     await request.populate([{ path: 'user', select: 'name phone' }, { path: 'provider', populate: { path: 'user', select: 'name phone' } }]);
+
+    // Dispatch SMS Notification via Twilio (non-blocking)
+    if (request.provider && request.provider.user && request.provider.user.phone) {
+      const providerPhone = request.provider.user.phone;
+      const userName = request.user.name || 'A user';
+      const cleanCategory = serviceCategory.replace('_', ' ');
+      const msg = `New Service Request! ${userName} needs a ${cleanCategory} at ${address || 'their location'}. Please check your Community Help app to accept.`;
+      
+      const { sendProviderSMS } = require('../utils/twilioService');
+      sendProviderSMS(providerPhone, msg).catch(err => console.error("Twilio SMS Background Error:", err.message));
+    }
+
     res.status(201).json({ success: true, request });
   } catch (err) {
     res.status(500).json({ message: err.message });
