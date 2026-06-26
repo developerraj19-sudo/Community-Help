@@ -146,8 +146,7 @@ export default function TrackingPage() {
 
           setNearbyPlaces(normalizedElements);
           
-          if (isFallback) {
-            const targetType = emergency.type === 'police' ? 'police' : emergency.type === 'fire' ? 'fire_station' : 'hospital';
+          const targetType = emergency.type === 'police' ? 'police' : emergency.type === 'fire' ? 'fire_station' : 'hospital';
             const sortedPlaces = normalizedElements
               .filter(p => p.tags?.amenity === targetType)
               .sort((a, b) => {
@@ -188,7 +187,6 @@ export default function TrackingPage() {
               placeName = bestPlace.tags?.name || (targetType === 'police' ? 'Local Police Station' : targetType === 'fire_station' ? 'Local Fire Station' : 'Local Hospital');
               setUnitName(placeName);
             }
-          }
         }
       } catch (err) {
         console.error("Overpass API Error:", err);
