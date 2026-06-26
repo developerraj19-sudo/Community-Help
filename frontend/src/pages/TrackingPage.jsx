@@ -128,31 +128,28 @@ export default function TrackingPage() {
       let finalLng = dbStartLng;
       let placeName = null;
 
-      const MANGALURU_HOSPITALS = [
-        { tags: { name: "KMC Hospital" }, lat: 12.8703, lon: 74.8436 },
-        { tags: { name: "Wenlock Hospital" }, lat: 12.8687, lon: 74.8437 },
-        { tags: { name: "Father Muller Hospital" }, lat: 12.8631, lon: 74.8550 },
-        { tags: { name: "A J Hospital" }, lat: 12.9009, lon: 74.8360 },
-        { tags: { name: "Indiana Hospital" }, lat: 12.8569, lon: 74.8647 }
-      ];
-
-      const MANGALURU_POLICE = [
-        { tags: { name: "Pandeshwara Police Station" }, lat: 12.8560, lon: 74.8393 },
-        { tags: { name: "Kadri Police Station" }, lat: 12.8902, lon: 74.8526 },
-        { tags: { name: "Barke Police Station" }, lat: 12.8833, lon: 74.8333 },
-        { tags: { name: "Bunder Police Station" }, lat: 12.8666, lon: 74.8333 },
-        { tags: { name: "Urwa Police Station" }, lat: 12.9022, lon: 74.8358 }
-      ];
-
-      const MANGALURU_FIRE = [
-        { tags: { name: "Pandeshwara Fire Station" }, lat: 12.8555, lon: 74.8400 },
-        { tags: { name: "Kadri Fire Station" }, lat: 12.8900, lon: 74.8500 }
-      ];
-
-        const targetType = emergency.type === 'police' ? 'police' : emergency.type === 'fire' ? 'fire_station' : 'hospital';
-        const targetArray = targetType === 'police' ? MANGALURU_POLICE : targetType === 'fire_station' ? MANGALURU_FIRE : MANGALURU_HOSPITALS;
+      try {
+        const query = `[out:json];(nwr(around:5000,${userLat},${userLng})[amenity=hospital];nwr(around:5000,${userLat},${userLng})[amenity=police];nwr(around:5000,${userLat},${userLng})[amenity=fire_station];);out center;`;
+        const overpassRes = await fetch('https://overpass-api.de/api/interpreter', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: 'data=' + encodeURIComponent(query)
+        });
+        const data = await overpassRes.json();
         
-        const sortedPlaces = [...targetArray].sort((a, b) => {
+        if (data.elements && data.elements.length > 0) {
+          const normalizedElements = data.elements.map(e => ({
+            ...e,
+            lat: e.lat || e.center?.lat,
+            lon: e.lon || e.center?.lon
+          })).filter(e => e.lat && e.lon);
+
+          setNearbyPlaces(normalizedElements);
+          
+          const targetType = emergency.type === 'police' ? 'police' : emergency.type === 'fire' ? 'fire_station' : 'hospital';
+            const sortedPlaces = normalizedElements
+              .filter(p => p.tags?.amenity === targetType)
+              .sort((a, b) => {
                 const distA = Math.pow(a.lat - userLat, 2) + Math.pow(a.lon - userLng, 2);
                 const distB = Math.pow(b.lat - userLat, 2) + Math.pow(b.lon - userLng, 2);
                 return distA - distB;
@@ -190,6 +187,10 @@ export default function TrackingPage() {
               placeName = bestPlace.tags?.name || (targetType === 'police' ? 'Local Police Station' : targetType === 'fire_station' ? 'Local Fire Station' : 'Local Hospital');
               setUnitName(placeName);
             }
+        }
+      } catch (err) {
+        console.error("Overpass API Error:", err);
+      }
 
       if (isFallback && !placeName) {
         let seed = 0;
