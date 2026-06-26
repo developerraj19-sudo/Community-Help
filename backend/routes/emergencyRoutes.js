@@ -194,6 +194,39 @@ router.post('/sos', protect, async (req, res) => {
   }
 });
 
+// @GET /api/emergency/nearby — proxy to Overpass API to bypass frontend adblockers
+router.get('/nearby', protect, async (req, res) => {
+  try {
+    const { lat, lng } = req.query;
+    if (!lat || !lng) return res.status(400).json({ message: 'lat and lng required' });
+    
+    // Perform the Overpass API query safely from the backend
+    const query = `[out:json];(nwr(around:5000,${lat},${lng})[amenity=hospital];nwr(around:5000,${lat},${lng})[amenity=police];nwr(around:5000,${lat},${lng})[amenity=fire_station];);out center;`;
+    const overpassUrl = 'https://overpass-api.de/api/interpreter';
+    
+    // We must use dynamic import for node-fetch in newer Node versions, or use native fetch if Node 18+
+    // Since this is Node 18+ (as tested earlier), native fetch is available.
+    const overpassRes = await fetch(overpassUrl, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent': 'CommunityHelpPlatform/1.0'
+      },
+      body: 'data=' + encodeURIComponent(query)
+    });
+    
+    if (!overpassRes.ok) {
+      throw new Error(`Overpass returned ${overpassRes.status}`);
+    }
+    
+    const data = await overpassRes.json();
+    res.json(data);
+  } catch (err) {
+    console.error("Backend Overpass Proxy Error:", err);
+    res.status(500).json({ message: err.message, elements: [] });
+  }
+});
+
 // @GET /api/emergency/my — get user's emergencies
 router.get('/my', protect, async (req, res) => {
   try {

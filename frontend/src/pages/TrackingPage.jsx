@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { renderToString } from 'react-dom/server';
 import Navbar from '../components/shared/Navbar';
 import { getMyEmergencies } from '../api/api';
+import API from '../api/api';
 import { FiMapPin, FiClock, FiPhone, FiArrowLeft, FiCheckCircle, FiNavigation } from 'react-icons/fi';
 import { MdLocalHospital, MdLocalPolice, MdFireTruck } from 'react-icons/md';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap, Circle } from 'react-leaflet';
@@ -129,13 +130,7 @@ export default function TrackingPage() {
       let placeName = null;
 
       try {
-        const query = `[out:json];(nwr(around:5000,${userLat},${userLng})[amenity=hospital];nwr(around:5000,${userLat},${userLng})[amenity=police];nwr(around:5000,${userLat},${userLng})[amenity=fire_station];);out center;`;
-        const overpassRes = await fetch('https://overpass-api.de/api/interpreter', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: 'data=' + encodeURIComponent(query)
-        });
-        const data = await overpassRes.json();
+        const { data } = await API.get(`/emergency/nearby?lat=${userLat}&lng=${userLng}`);
         
         if (data.elements && data.elements.length > 0) {
           const normalizedElements = data.elements.map(e => ({
