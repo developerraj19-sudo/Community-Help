@@ -229,7 +229,7 @@ export default function TrackingPage() {
           if (data.routes[0].distance) setRouteDistance(data.routes[0].distance);
           
           const actualDuration = data.routes[0].duration;
-          const realisticSeconds = isFallback && placeName ? Math.ceil(actualDuration) + 120 : (16 * 60);
+          const realisticSeconds = Math.ceil(actualDuration) + 300; // actual driving seconds + 5 minute dispatch buffer
           setOsrmDuration(realisticSeconds);
           
           setProviderEta(prev => {
