@@ -152,18 +152,18 @@ export default function TrackingPage() {
           console.warn("Photon API fetch failed:", apiErr);
         }
 
-        // Hardcoded Mangaluru Fallback if Photon fails, times out, or returns nothing useful
-        if (normalizedElements.length === 0) {
-           console.log("Using hardcoded Mangaluru fallback...");
-           normalizedElements = [
-              { lat: 12.8703, lon: 74.8436, tags: { name: "KMC Hospital", amenity: "hospital" } },
-              { lat: 12.8687, lon: 74.8437, tags: { name: "Wenlock Hospital", amenity: "hospital" } },
-              { lat: 12.8631, lon: 74.8550, tags: { name: "Father Muller Hospital", amenity: "hospital" } },
-              { lat: 12.8560, lon: 74.8393, tags: { name: "Pandeshwara Police Station", amenity: "police" } },
-              { lat: 12.8902, lon: 74.8526, tags: { name: "Kadri Police Station", amenity: "police" } },
-              { lat: 12.8555, lon: 74.8400, tags: { name: "Pandeshwara Fire Station", amenity: "fire_station" } }
-           ].filter(e => e.tags.amenity === targetType);
-        }
+        // Always append hardcoded Mangaluru Fallback to guarantee a nearby dispatch
+        // if external OSM data is sparse (e.g. fire stations)
+        const hardcodedFallback = [
+          { lat: 12.8703, lon: 74.8436, tags: { name: "KMC Hospital", amenity: "hospital" } },
+          { lat: 12.8687, lon: 74.8437, tags: { name: "Wenlock Hospital", amenity: "hospital" } },
+          { lat: 12.8631, lon: 74.8550, tags: { name: "Father Muller Hospital", amenity: "hospital" } },
+          { lat: 12.8560, lon: 74.8393, tags: { name: "Pandeshwara Police Station", amenity: "police" } },
+          { lat: 12.8902, lon: 74.8526, tags: { name: "Kadri Police Station", amenity: "police" } },
+          { lat: 12.8555, lon: 74.8400, tags: { name: "Pandeshwara Fire Station", amenity: "fire_station" } }
+        ].filter(e => e.tags.amenity === targetType);
+        
+        normalizedElements = [...normalizedElements, ...hardcodedFallback];
 
         setNearbyPlaces(normalizedElements);
         
