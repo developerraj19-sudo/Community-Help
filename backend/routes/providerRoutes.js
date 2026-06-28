@@ -132,7 +132,10 @@ router.put('/:id/approve', protect, authorize('admin'), async (req, res) => {
       
       // Dispatch SMS Notification via Twilio (non-blocking)
       if (provider.user && provider.user.phone) {
-        const providerPhone = provider.user.phone;
+        let providerPhone = provider.user.phone.trim();
+        if (!providerPhone.startsWith('+')) {
+          providerPhone = providerPhone.length === 10 ? `+91${providerPhone}` : `+${providerPhone}`;
+        }
         const providerName = provider.user.name || 'Provider';
         const msg = `Congratulations ${providerName}! Your Community Help provider profile has been verified and approved by the admin. You can now receive service requests.`;
         

@@ -151,17 +151,31 @@ router.post('/request', protect, async (req, res) => {
       updatedAt: new Date()
     });
 
-    await request.populate([{ path: 'user', select: 'name phone' }, { path: 'provider', populate: { path: 'user', select: 'name phone' } }]);
+    await request.populate([{ path: 'user', select: 'name phone' }, { path: 'provider' }]);
 
     // Dispatch SMS Notification via Twilio (non-blocking)
-    if (request.provider && request.provider.user && request.provider.user.phone) {
-      const providerPhone = request.provider.user.phone;
-      const userName = request.user.name || 'A user';
-      const cleanCategory = serviceCategory.replace('_', ' ');
-      const msg = `New Service Request! ${userName} needs a ${cleanCategory} at ${address || 'their location'}. Please check your Community Help app to accept.`;
-      
-      const { sendProviderSMS } = require('../utils/twilioService');
-      sendProviderSMS(providerPhone, msg).catch(err => console.error("Twilio SMS Background Error:", err.message));
+    if (assignedProviderId) {
+      try {
+        const ProviderModel = require('../models/Provider');
+        const assignedProvider = await ProviderModel.findById(assignedProviderId).populate('user', 'name phone');
+        
+        if (assignedProvider && assignedProvider.user && assignedProvider.user.phone) {
+          let providerPhone = assignedProvider.user.phone.trim();
+          // Twilio requires E.164 format. If missing '+', prepend it (assume India +91 if 10 digits, or just '+' if they entered country code without +)
+          if (!providerPhone.startsWith('+')) {
+            providerPhone = providerPhone.length === 10 ? `+91${providerPhone}` : `+${providerPhone}`;
+          }
+          
+          const userName = request.user.name || 'A user';
+          const cleanCategory = serviceCategory.replace('_', ' ');
+          const msg = `New Service Request! ${userName} needs a ${cleanCategory} at ${address || 'their location'}. Please check your Community Help app to accept.`;
+          
+          const { sendProviderSMS } = require('../utils/twilioService');
+          sendProviderSMS(providerPhone, msg).catch(err => console.error("Twilio SMS Background Error:", err.message));
+        }
+      } catch (smsErr) {
+        console.error("SMS Dispatch preparation failed:", smsErr.message);
+      }
     }
 
     res.status(201).json({ success: true, request });
