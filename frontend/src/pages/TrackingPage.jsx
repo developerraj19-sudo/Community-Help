@@ -263,19 +263,6 @@ export default function TrackingPage() {
       })
       .catch(console.error)
       .finally(() => setLoading(false));
-
-    // Firestore Real-Time Sync
-    const unsub = onSnapshot(doc(db, 'emergency_status', id), (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        if (data.status) setEmergency(prev => prev ? { ...prev, status: data.status } : null);
-        if (data.providerLat && data.providerLng) {
-          setProviderLoc({ lat: data.providerLat, lng: data.providerLng });
-          setInitialStartLoc(prev => prev || { lat: data.providerLat, lng: data.providerLng });
-        }
-      }
-    });
-    return () => unsub();
   }, [id, osrmDuration]);
 
   useEffect(() => {
