@@ -9,8 +9,6 @@ import { MdLocalHospital, MdLocalPolice, MdFireTruck } from 'react-icons/md';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap, Circle } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { db } from '../firebase';
-import { doc, onSnapshot } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 const userIcon = new L.DivIcon({
   html: `

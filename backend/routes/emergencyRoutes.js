@@ -144,45 +144,9 @@ router.post('/sos', protect, async (req, res) => {
       updatedAt: new Date()
     });
 
-    // --- Start Real-Time Movement Simulation Loop ---
-    // CORE FEATURE: Background Polling/Push mechanism.
-    // This background loop simulates the dispatched vehicle driving towards the user's exact coordinates.
-    // In a full production hardware environment, this replaces physical GPS module polling.
-    // It updates Firebase every 2 seconds, triggering real-time UI re-renders on the React/Flutter tracking maps.
-    const steps = etaMinutes * 60 / 2; // update every 2 seconds
-    const latStep = (lat - providerLat) / steps;
-    const lngStep = (lng - providerLng) / steps;
-    let currentStep = 0;
+    // Real-Time movement is now handled entirely on the client-side (frontend) 
+    // to bypass Vercel serverless timeout limits and avoid database spam.
     
-    const interval = setInterval(async () => {
-      currentStep++;
-      providerLat += latStep;
-      providerLng += lngStep;
-      
-      // Calculate remaining ETA
-      const remainingEta = Math.max(0, etaMinutes - (currentStep * 2 / 60));
-
-      const docSnap = await firestoreRef.get();
-      if (!docSnap.exists || docSnap.data().status === 'resolved') {
-        clearInterval(interval);
-        return;
-      }
-
-      await firestoreRef.update({
-        providerLat,
-        providerLng,
-        etaMinutes: remainingEta,
-        updatedAt: new Date()
-      });
-
-      if (currentStep >= steps) {
-        clearInterval(interval);
-        await firestoreRef.update({ status: 'resolved', etaMinutes: 0 });
-        await Emergency.findByIdAndUpdate(emergency._id, { status: 'resolved', resolvedAt: new Date() });
-      }
-    }, 2000);
-    // ----------------------------------------------
-
     res.status(201).json({
       success: true,
       emergency,

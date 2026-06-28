@@ -19,9 +19,20 @@ const signToken = (id) =>
 // @POST /api/auth/register
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, password, phone, role, address } = req.body;
+    let { name, email, password, phone, role, address } = req.body;
+    
+    // Enforce E.164 format for all registered users
+    if (phone) {
+      phone = phone.trim();
+      if (!phone.startsWith('+')) {
+        phone = phone.length === 10 ? `+91${phone}` : `+${phone}`;
+      }
+    }
+    
     const existing = await User.findOne({ email });
+    const existingPhone = await User.findOne({ phone });
     if (existing) return res.status(400).json({ message: 'Email already registered' });
+    if (existingPhone) return res.status(400).json({ message: 'Phone number already registered' });
 
     const user = await User.create({ name, email, password, phone, role: role || 'user', address });
     const token = signToken(user._id);
@@ -86,12 +97,16 @@ router.post('/login', async (req, res) => {
       await Otp.create({ phone: user.phone, otp: otpCode });
 
       if (twilioClient) {
+        let twilioPhone = user.phone.trim();
+        if (!twilioPhone.startsWith('+')) {
+          twilioPhone = twilioPhone.length === 10 ? `+91${twilioPhone}` : `+${twilioPhone}`;
+        }
         await twilioClient.messages.create({
           body: `Your Community Help login code is ${otpCode}`,
           from: process.env.TWILIO_PHONE_NUMBER,
-          to: user.phone
+          to: twilioPhone
         });
-        console.log(`[Twilio] Sent OTP to ${user.phone}`);
+        console.log(`[Twilio] Sent OTP to ${twilioPhone}`);
       } else {
         console.log(`\n================================`);
         console.log(`[DEMO MODE] OTP for ${user.phone}: ${otpCode}`);

@@ -38,7 +38,7 @@ router.post('/request', protect, async (req, res) => {
 
     // Auto-assign to optimal provider if none selected using AI Utility Curve
     if (!assignedProviderId && lat && lng) {
-      const nearbyProviders = await Provider.find({
+      let nearbyProviders = await Provider.find({
         serviceCategory,
         isAvailable: true,
         isApproved: true,
@@ -51,6 +51,17 @@ router.post('/request', protect, async (req, res) => {
         }
       });
       
+      // Fallback: If no providers found within strict radius, fetch them regardless of location 
+      // This handles providers who registered without location access (defaulted to [0,0])
+      if (nearbyProviders.length === 0) {
+        nearbyProviders = await Provider.find({
+          serviceCategory,
+          isAvailable: true,
+          isApproved: true,
+          isActive: true
+        });
+      }
+
       if (nearbyProviders.length === 0) {
         return res.status(404).json({ message: `No available ${serviceCategory.replace('_', ' ')} providers found nearby.` });
       }
