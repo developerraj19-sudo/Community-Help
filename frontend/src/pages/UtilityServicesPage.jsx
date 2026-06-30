@@ -170,7 +170,59 @@ export default function UtilityServicesPage() {
       const params = { category: activeCategory };
       if (coords) { params.lat = coords.lat; params.lng = coords.lng; }
       const { data } = await getNearbyProviders(params);
-      setProviders(data.providers || []);
+      
+      const dummyProviders = [
+        {
+          _id: `dummy_${activeCategory}_1`,
+          user: { name: 'Ramesh' },
+          serviceCategory: activeCategory,
+          rating: 4.8,
+          experience: 5,
+          totalJobs: 42,
+          hourlyRate: 350,
+          about: `Hello I am Ramesh I am professional in ${activeCategory.replace('_', ' ')}`,
+          isAvailable: true,
+          offeredServices: [activeCategory]
+        },
+        {
+          _id: `dummy_${activeCategory}_2`,
+          user: { name: 'Suresh' },
+          serviceCategory: activeCategory,
+          rating: 4.6,
+          experience: 3,
+          totalJobs: 18,
+          hourlyRate: 250,
+          about: `Hello I am Suresh I am professional in ${activeCategory.replace('_', ' ')}`,
+          isAvailable: true,
+          offeredServices: [activeCategory]
+        },
+        {
+          _id: `dummy_${activeCategory}_3`,
+          user: { name: 'Anil' },
+          serviceCategory: activeCategory,
+          rating: 4.9,
+          experience: 8,
+          totalJobs: 112,
+          hourlyRate: 500,
+          about: `Hello I am Anil I am professional in ${activeCategory.replace('_', ' ')}`,
+          isAvailable: true,
+          offeredServices: [activeCategory]
+        },
+        {
+          _id: `dummy_${activeCategory}_4`,
+          user: { name: 'Pooja' },
+          serviceCategory: activeCategory,
+          rating: 4.7,
+          experience: 4,
+          totalJobs: 36,
+          hourlyRate: 300,
+          about: `Hello I am Pooja I am professional in ${activeCategory.replace('_', ' ')}`,
+          isAvailable: true,
+          offeredServices: [activeCategory]
+        }
+      ];
+
+      setProviders([...(data.providers || []), ...dummyProviders]);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to fetch providers');
       setProviders([]);
@@ -178,6 +230,11 @@ export default function UtilityServicesPage() {
   };
 
   const handleRequest = async (providerId, serviceCategory) => {
+    if (String(providerId).startsWith('dummy')) {
+      toast.success(scheduledAt ? 'Demo: Service scheduled successfully!' : 'Demo: Service requested successfully!');
+      return;
+    }
+    
     try {
       setLoading(true);
       const { data } = await createRequest({ providerId, serviceCategory, description, scheduledAt, lat: coords?.lat, lng: coords?.lng });
