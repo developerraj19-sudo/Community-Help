@@ -196,9 +196,29 @@ export default function UtilityServicesPage() {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       <div className="max-w-6xl mx-auto px-4 py-8">
-        <div className="mb-6">
-          <h1 className="text-3xl font-black text-gray-900">Utility Services</h1>
-          <p className="text-gray-500 mt-1">Find verified service providers near you</p>
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-black text-gray-900">Utility Services</h1>
+            <p className="text-gray-500 mt-1">Find verified service providers near you</p>
+          </div>
+          <button 
+            onClick={async () => {
+              try {
+                setLoading(true);
+                await fetch('https://community-help-backend.vercel.app/api/services/seed-demo');
+                toast.success('Demo providers loaded! Refreshing list...');
+                fetchProviders();
+              } catch (err) {
+                toast.error('Failed to load demo providers');
+              } finally {
+                setLoading(false);
+              }
+            }}
+            disabled={loading}
+            className="px-4 py-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border border-indigo-200 rounded-xl font-bold text-sm transition-colors flex items-center gap-2"
+          >
+            <FiTool /> Load Demo Providers
+          </button>
         </div>
 
         {/* Mobile Category Toggle */}
