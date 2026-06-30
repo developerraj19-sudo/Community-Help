@@ -22,7 +22,7 @@ const { db } = require('../config/firebase');
 router.post('/request', protect, async (req, res) => {
   try {
     const { providerId, serviceCategory, description, lat, lng, address, scheduledAt } = req.body;
-    
+
     // Prevent duplicate active requests for the same service category
     const existingActive = await ServiceRequest.findOne({
       user: req.user._id,
@@ -50,7 +50,7 @@ router.post('/request', protect, async (req, res) => {
           }
         }
       });
-      
+
       // Fallback: If no providers found within strict radius, fetch them regardless of location 
       // This handles providers who registered without location access (defaulted to [0,0])
       if (nearbyProviders.length === 0) {
@@ -108,12 +108,12 @@ router.post('/request', protect, async (req, res) => {
         const R = 6371; // km
         const dLat = (p.location.coordinates[1] - lat) * Math.PI / 180;
         const dLng = (p.location.coordinates[0] - lng) * Math.PI / 180;
-        const a = Math.sin(dLat/2)*Math.sin(dLat/2) +
-                  Math.cos(lat*Math.PI/180) * Math.cos(p.location.coordinates[1]*Math.PI/180) *
-                  Math.sin(dLng/2)*Math.sin(dLng/2);
-        const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos(lat * Math.PI / 180) * Math.cos(p.location.coordinates[1] * Math.PI / 180) *
+          Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         const normDistance = Math.max(0, 1 - (dist / 15)); // normalize to 15km
-        
+
         // Workload Score
         const workload = workloadsMap[p._id] || 0;
         const normWorkload = Math.max(0, 1 - (workload / 5)); // assume >5 is full
@@ -131,10 +131,10 @@ router.post('/request', protect, async (req, res) => {
 
         // Final Utility Score
         const score = (wDistance * normDistance) +
-                      (wWorkload * normWorkload) +
-                      (wSpeed * normSpeed) +
-                      (wRating * normRating) +
-                      (wCost * normCost);
+          (wWorkload * normWorkload) +
+          (wSpeed * normSpeed) +
+          (wRating * normRating) +
+          (wCost * normCost);
 
         if (score > maxScore) {
           maxScore = score;
@@ -169,18 +169,18 @@ router.post('/request', protect, async (req, res) => {
       try {
         const ProviderModel = require('../models/Provider');
         const assignedProvider = await ProviderModel.findById(assignedProviderId).populate('user', 'name phone');
-        
+
         if (assignedProvider && assignedProvider.user && assignedProvider.user.phone) {
           let providerPhone = assignedProvider.user.phone.trim();
           // Twilio requires E.164 format. If missing '+', prepend it (assume India +91 if 10 digits, or just '+' if they entered country code without +)
           if (!providerPhone.startsWith('+')) {
             providerPhone = providerPhone.length === 10 ? `+91${providerPhone}` : `+${providerPhone}`;
           }
-          
+
           const userName = request.user.name || 'A user';
           const cleanCategory = serviceCategory.replace('_', ' ');
           const msg = `New Service Request! ${userName} needs a ${cleanCategory} at ${address || 'their location'}. Please check your Community Help app to accept.`;
-          
+
           const { sendProviderSMS } = require('../utils/twilioService');
           sendProviderSMS(providerPhone, msg).catch(err => console.error("Twilio SMS Background Error:", err.message));
         }
@@ -231,7 +231,7 @@ router.put('/:id/status', protect, async (req, res) => {
     const request = await ServiceRequest.findByIdAndUpdate(req.params.id, update, { new: true })
       .populate('user', 'name phone')
       .populate({ path: 'provider', populate: { path: 'user', select: 'name phone' } });
-      
+
     // Update tracking in Firestore
     await db.collection('service_tracking').doc(request._id.toString()).update({
       status: status,
@@ -282,15 +282,15 @@ router.get('/', protect, authorize('admin'), async (req, res) => {
 router.get('/seed-demo', async (req, res) => {
   try {
     const CATEGORIES = [
-      'plumber', 'electrician', 'carpenter', 'ac_repair', 
-      'appliance_repair', 'water_tanker', 'cleaning', 'maid', 
+      'plumber', 'electrician', 'carpenter', 'ac_repair',
+      'appliance_repair', 'water_tanker', 'cleaning', 'maid',
       'cook', 'caretaker', 'physiotherapy', 'lab_test', 'tutor'
     ];
-    
+
     const firstNames = ['Amit', 'Raj', 'Rahul', 'Sunil', 'Suresh', 'Ramesh', 'Vinod', 'Anil', 'Sanjay', 'Prakash', 'Deepak', 'Vijay', 'Neha', 'Pooja', 'Anjali', 'Kavita', 'Ravi', 'Kiran'];
     const lastNames = ['Sharma', 'Singh', 'Kumar', 'Patil', 'Deshmukh', 'Joshi', 'Kulkarni', 'Reddy', 'Rao', 'Nair', 'Shetty', 'Pai'];
-    
-    const randomName = () => `${firstNames[Math.floor(Math.random()*firstNames.length)]} ${lastNames[Math.floor(Math.random()*lastNames.length)]}`;
+
+    const randomName = () => `${firstNames[Math.floor(Math.random() * firstNames.length)]} ${lastNames[Math.floor(Math.random() * lastNames.length)]}`;
     const randomNumber = () => `+9198${Math.floor(10000000 + Math.random() * 90000000)}`;
 
     let count = 0;
@@ -299,41 +299,41 @@ router.get('/seed-demo', async (req, res) => {
         const name = randomName();
         const email = `demo_${category}_${i}_${Date.now()}@example.com`;
         const phone = randomNumber();
-        
+
         let user = await User.findOne({ email });
         if (!user) {
-           user = await User.create({
-             name,
-             email,
-             password: 'password123',
-             phone,
-             role: 'provider',
-             isActive: true,
-             location: { type: 'Point', coordinates: [74.8436 + (Math.random()*0.1 - 0.05), 12.8703 + (Math.random()*0.1 - 0.05)] } 
-           });
+          user = await User.create({
+            name,
+            email,
+            password: 'password123',
+            phone,
+            role: 'provider',
+            isActive: true,
+            location: { type: 'Point', coordinates: [74.8436 + (Math.random() * 0.1 - 0.05), 12.8703 + (Math.random() * 0.1 - 0.05)] }
+          });
         }
-        
+
         const existingProvider = await Provider.findOne({ user: user._id });
         if (!existingProvider) {
-           await Provider.create({
-             user: user._id,
-             serviceCategory: category,
-             serviceType: 'utility',
-             providerType: 'individual',
-             experience: Math.floor(Math.random() * 8) + 2, // 2 to 9 years
-             about: `Hello I am ${name.split(' ')[0]} I am professional in ${category.replace('_', ' ')}`,
-             skills: [category.replace('_', ' ')],
-             location: user.location,
-             isAvailable: true,
-             isApproved: true,
-             isActive: true,
-             rating: parseFloat((Math.random() * 1.5 + 3.5).toFixed(1)),
-             totalRatings: Math.floor(Math.random() * 50) + 5,
-             totalJobs: Math.floor(Math.random() * 100) + 10,
-             hourlyRate: Math.floor(Math.random() * 400) + 200,
-             averageResponseTime: Math.floor(Math.random() * 60) + 15
-           });
-           count++;
+          await Provider.create({
+            user: user._id,
+            serviceCategory: category,
+            serviceType: 'utility',
+            providerType: 'individual',
+            experience: Math.floor(Math.random() * 8) + 2, // 2 to 9 years
+            about: `Hello I am ${name.split(' ')[0]} I am professional in ${category.replace('_', ' ')}`,
+            skills: [category.replace('_', ' ')],
+            location: user.location,
+            isAvailable: true,
+            isApproved: true,
+            isActive: true,
+            rating: parseFloat((Math.random() * 1.5 + 3.5).toFixed(1)),
+            totalRatings: Math.floor(Math.random() * 50) + 5,
+            totalJobs: Math.floor(Math.random() * 100) + 10,
+            hourlyRate: Math.floor(Math.random() * 400) + 200,
+            averageResponseTime: Math.floor(Math.random() * 60) + 15
+          });
+          count++;
         }
       }
     }
