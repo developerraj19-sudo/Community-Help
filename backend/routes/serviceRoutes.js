@@ -277,4 +277,70 @@ router.get('/', protect, authorize('admin'), async (req, res) => {
   }
 });
 
+// TEMPORARY: Seed Demo Providers endpoint
+// This can be hit once to populate the database on Vercel.
+router.get('/seed-demo', async (req, res) => {
+  try {
+    const CATEGORIES = [
+      'plumber', 'electrician', 'carpenter', 'ac_repair', 
+      'appliance_repair', 'water_tanker', 'cleaning', 'maid', 
+      'cook', 'caretaker', 'physiotherapy', 'lab_test', 'tutor'
+    ];
+    
+    const firstNames = ['Amit', 'Raj', 'Rahul', 'Sunil', 'Suresh', 'Ramesh', 'Vinod', 'Anil', 'Sanjay', 'Prakash', 'Deepak', 'Vijay', 'Neha', 'Pooja', 'Anjali', 'Kavita', 'Ravi', 'Kiran'];
+    const lastNames = ['Sharma', 'Singh', 'Kumar', 'Patil', 'Deshmukh', 'Joshi', 'Kulkarni', 'Reddy', 'Rao', 'Nair', 'Shetty', 'Pai'];
+    
+    const randomName = () => `${firstNames[Math.floor(Math.random()*firstNames.length)]} ${lastNames[Math.floor(Math.random()*lastNames.length)]}`;
+    const randomNumber = () => `+9198${Math.floor(10000000 + Math.random() * 90000000)}`;
+
+    let count = 0;
+    for (const category of CATEGORIES) {
+      for (let i = 1; i <= 4; i++) {
+        const name = randomName();
+        const email = `demo_${category}_${i}_${Date.now()}@example.com`;
+        const phone = randomNumber();
+        
+        let user = await User.findOne({ email });
+        if (!user) {
+           user = await User.create({
+             name,
+             email,
+             password: 'password123',
+             phone,
+             role: 'provider',
+             isActive: true,
+             location: { type: 'Point', coordinates: [74.8436 + (Math.random()*0.1 - 0.05), 12.8703 + (Math.random()*0.1 - 0.05)] } 
+           });
+        }
+        
+        const existingProvider = await Provider.findOne({ user: user._id });
+        if (!existingProvider) {
+           await Provider.create({
+             user: user._id,
+             serviceCategory: category,
+             serviceType: 'utility',
+             providerType: 'individual',
+             experience: Math.floor(Math.random() * 8) + 2, // 2 to 9 years
+             about: `Hello I am ${name.split(' ')[0]} I am professional in ${category.replace('_', ' ')}`,
+             skills: [category.replace('_', ' ')],
+             location: user.location,
+             isAvailable: true,
+             isApproved: true,
+             isActive: true,
+             rating: parseFloat((Math.random() * 1.5 + 3.5).toFixed(1)),
+             totalRatings: Math.floor(Math.random() * 50) + 5,
+             totalJobs: Math.floor(Math.random() * 100) + 10,
+             hourlyRate: Math.floor(Math.random() * 400) + 200,
+             averageResponseTime: Math.floor(Math.random() * 60) + 15
+           });
+           count++;
+        }
+      }
+    }
+    res.json({ message: `Successfully seeded ${count} new demo providers!` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
