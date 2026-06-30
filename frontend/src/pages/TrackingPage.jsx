@@ -454,7 +454,7 @@ export default function TrackingPage() {
                 <div className="flex items-center justify-between gap-4 bg-gray-50 border border-gray-100 rounded-2xl p-3 w-full sm:w-auto shadow-inner">
                   <div className="sm:hidden text-gray-500 font-bold text-sm pl-2">Estimated Arrival</div>
                   <div className="text-right flex items-end gap-1.5 pr-2 sm:pr-0">
-                    <div className={`text-4xl font-black leading-none tracking-tighter ${c.text}`}>{fmt(providerEta || totalSeconds)}</div>
+                    <div translate="no" className={`text-4xl font-black leading-none tracking-tighter notranslate ${c.text}`}>{fmt(providerEta || totalSeconds)}</div>
                     <div className="text-gray-500 font-bold text-xs uppercase tracking-wider pb-0.5 leading-tight">ETA</div>
                   </div>
                 </div>
@@ -473,7 +473,7 @@ export default function TrackingPage() {
                </span>
                Help is on the way
             </span>
-            <span className="text-xs font-bold text-gray-400 bg-gray-50 border border-gray-100 px-2.5 py-1 rounded-lg shadow-inner flex items-center gap-1">
+            <span translate="no" className="text-xs font-bold text-gray-400 bg-gray-50 border border-gray-100 px-2.5 py-1 rounded-lg shadow-inner flex items-center gap-1 notranslate">
               <FiClock className="w-3.5 h-3.5" /> {fmt(elapsed)}
             </span>
           </div>
