@@ -391,22 +391,22 @@ export default function TrackingPage() {
   }) : null;
 
   const hospitalIcon = new L.DivIcon({
-    html: `<div style="background: white; border: 2px solid #ef4444; border-radius: 8px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; color: #ef4444; font-weight: bold; font-family: sans-serif; font-size: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">H</div>`,
-    className: 'custom-leaflet-icon',
+    html: `<div translate="no" class="notranslate" style="background: white; border: 2px solid #ef4444; border-radius: 8px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; color: #ef4444; font-weight: bold; font-family: sans-serif; font-size: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">H</div>`,
+    className: 'custom-leaflet-icon notranslate',
     iconSize: [28, 28],
     iconAnchor: [14, 14],
   });
 
   const policeIcon = new L.DivIcon({
-    html: `<div style="background: white; border: 2px solid #3b82f6; border-radius: 8px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; color: #3b82f6; font-weight: bold; font-family: sans-serif; font-size: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">P</div>`,
-    className: 'custom-leaflet-icon',
+    html: `<div translate="no" class="notranslate" style="background: white; border: 2px solid #3b82f6; border-radius: 8px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; color: #3b82f6; font-weight: bold; font-family: sans-serif; font-size: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">P</div>`,
+    className: 'custom-leaflet-icon notranslate',
     iconSize: [28, 28],
     iconAnchor: [14, 14],
   });
 
   const fireStationIcon = new L.DivIcon({
-    html: `<div style="background: white; border: 2px solid #f97316; border-radius: 8px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; color: #f97316; font-weight: bold; font-family: sans-serif; font-size: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">F</div>`,
-    className: 'custom-leaflet-icon',
+    html: `<div translate="no" class="notranslate" style="background: white; border: 2px solid #f97316; border-radius: 8px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; color: #f97316; font-weight: bold; font-family: sans-serif; font-size: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">F</div>`,
+    className: 'custom-leaflet-icon notranslate',
     iconSize: [28, 28],
     iconAnchor: [14, 14],
   });
